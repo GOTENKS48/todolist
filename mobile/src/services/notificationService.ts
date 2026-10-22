@@ -6,7 +6,7 @@ type NotificationListener = (notification: DeadlineNotification) => void;
 
 class NotificationService {
   private notifiedTaskMap: Map<string, number> = new Map(); // taskId -> timestamp of notification
-  private scheduledTaskIds: Set<string> = new Set();
+  private scheduledTaskKeys: Set<string> = new Set();
   private listeners: Set<NotificationListener> = new Set();
   private activeNotifications: DeadlineNotification[] = [];
 
@@ -65,142 +65,184 @@ class NotificationService {
    * Cancel background notifications for a specific task
    */
   public cancelForTask(taskId: string): void {
+    NativeNotificationService.cancel(`${taskId}_start`);
     NativeNotificationService.cancel(`${taskId}_1h`);
-    NativeNotificationService.cancel(`${taskId}_15m`);
     NativeNotificationService.cancel(`${taskId}_due`);
-    this.scheduledTaskIds.delete(taskId);
+    this.scheduledTaskKeys.delete(`${taskId}_start`);
+    this.scheduledTaskKeys.delete(`${taskId}_1h`);
+    this.scheduledTaskKeys.delete(`${taskId}_due`);
   }
 
   /**
-   * Scan tasks, trigger status bar notifications, and schedule background alarms
-   * that fire even when the app is completely minimized or closed!
+   * Scan tasks and schedule exact notifications for the 3 user-specified triggers:
+   * 1. When scheduled start date has occurred (task.dateTime)
+   * 2. When there is 1 hour left in deadline (task.deadline - 1 hour)
+   * 3. When the target deadline has appeared / arrived (task.deadline)
+   * Works whether the app is open, minimized, or closed!
    */
   public checkDeadlines(tasks: Task[]): DeadlineNotification[] {
     const now = Date.now();
     const newNotifications: DeadlineNotification[] = [];
 
     // Filter active, non-completed tasks
-    const activeTasks = tasks.filter((t) => !t.isCompleted && t.deadline);
+    const activeTasks = tasks.filter((t) => !t.isCompleted);
 
     for (const task of activeTasks) {
-      const deadlineMs = new Date(task.deadline).getTime();
-      if (isNaN(deadlineMs)) continue;
+      // ---------------------------------------------------------
+      // TRIGGER 1: SCHEDULED START DATE & TIME HAS OCCURRED
+      // ---------------------------------------------------------
+      if (task.dateTime) {
+        const startMs = new Date(task.dateTime).getTime();
+        if (!isNaN(startMs)) {
+          // Schedule background alarm if start time is in the future
+          const startKey = `${task._id}_start`;
+          if (startMs > now && !this.scheduledTaskKeys.has(startKey)) {
+            this.scheduledTaskKeys.add(startKey);
+            NativeNotificationService.schedule(
+              startKey,
+              'Task Scheduled Start 🚀',
+              `Scheduled start time has arrived for "${task.title}".`,
+              startMs
+            );
+          }
 
-      const diffMs = deadlineMs - now;
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+          // In-app real-time notification if start time arrived within the last 15 minutes
+          const startDiffMin = Math.floor((now - startMs) / (1000 * 60));
+          if (startDiffMin >= 0 && startDiffMin < 15) {
+            const startNotifKey = `${task._id}_start_realtime`;
+            const lastNotified = this.notifiedTaskMap.get(startNotifKey);
+            if (!lastNotified || now - lastNotified > 30 * 60 * 1000) {
+              this.notifiedTaskMap.set(startNotifKey, now);
 
-      // 1. Schedule background alarms for tasks with future deadlines (works when app is closed)
-      if (diffMs > 0 && !this.scheduledTaskIds.has(task._id)) {
-        this.scheduledTaskIds.add(task._id);
+              const notifItem: DeadlineNotification = {
+                id: `${task._id}_start_${now}`,
+                taskId: task._id,
+                title: task.title,
+                deadline: task.deadline,
+                urgency: 'UPCOMING',
+                minutesRemaining: 0,
+                message: `Scheduled start time has arrived for "${task.title}".`,
+                timestamp: now,
+              };
 
-        // Schedule 1 hour before
-        const oneHourBefore = deadlineMs - 60 * 60 * 1000;
-        if (oneHourBefore > now) {
-          NativeNotificationService.schedule(
-            `${task._id}_1h`,
-            'Approaching Deadline ⏳',
-            `"${task.title}" is due in 1 hour.`,
-            oneHourBefore
-          );
+              newNotifications.push(notifItem);
+              this.activeNotifications = [
+                notifItem,
+                ...this.activeNotifications.filter((n) => n.taskId !== task._id),
+              ].slice(0, 20);
+
+              NativeNotificationService.showNow(
+                notifItem.id,
+                'Task Scheduled Start 🚀',
+                notifItem.message
+              );
+
+              this.listeners.forEach((listener) => {
+                try { listener(notifItem); } catch {}
+              });
+            }
+          }
         }
-
-        // Schedule 15 minutes before
-        const fifteenMinBefore = deadlineMs - 15 * 60 * 1000;
-        if (fifteenMinBefore > now) {
-          NativeNotificationService.schedule(
-            `${task._id}_15m`,
-            'Urgent Deadline Alert ⚠️',
-            `"${task.title}" is due in 15 minutes!`,
-            fifteenMinBefore
-          );
-        }
-
-        // Schedule at exact deadline
-        NativeNotificationService.schedule(
-          `${task._id}_due`,
-          'Deadline Passed 🚨',
-          `Deadline just arrived for "${task.title}". Complete it now!`,
-          deadlineMs
-        );
       }
 
-      // 2. Real-time in-app and status bar notification check
-      let urgency: 'OVERDUE' | 'CRITICAL' | 'UPCOMING' | null = null;
-      let message = '';
+      // ---------------------------------------------------------
+      // TRIGGERS 2 & 3: 1 HOUR LEFT & DEADLINE HAS APPEARED
+      // ---------------------------------------------------------
+      if (task.deadline) {
+        const deadlineMs = new Date(task.deadline).getTime();
+        if (isNaN(deadlineMs)) continue;
 
-      if (diffMinutes < 0) {
-        if (diffMinutes > -2880) {
+        const diffMs = deadlineMs - now;
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+        // Background Trigger 2: Exactly 1 hour before deadline
+        const oneHourBeforeMs = deadlineMs - 60 * 60 * 1000;
+        const oneHourKey = `${task._id}_1h`;
+        if (oneHourBeforeMs > now && !this.scheduledTaskKeys.has(oneHourKey)) {
+          this.scheduledTaskKeys.add(oneHourKey);
+          NativeNotificationService.schedule(
+            oneHourKey,
+            '1 Hour Left ⏳',
+            `Only 1 hour left before deadline for "${task.title}"!`,
+            oneHourBeforeMs
+          );
+        }
+
+        // Background Trigger 3: Exact Deadline Reached
+        const dueKey = `${task._id}_due`;
+        if (deadlineMs > now && !this.scheduledTaskKeys.has(dueKey)) {
+          this.scheduledTaskKeys.add(dueKey);
+          NativeNotificationService.schedule(
+            dueKey,
+            'Deadline Reached 🚨',
+            `Target deadline has arrived for "${task.title}". Complete it now!`,
+            deadlineMs
+          );
+        }
+
+        // Real-time In-App & Status Bar Checks
+        let urgency: 'OVERDUE' | 'CRITICAL' | null = null;
+        let message = '';
+
+        if (diffMinutes <= 0 && diffMinutes > -1440) {
+          // Trigger 3 in real-time: Deadline has appeared
           urgency = 'OVERDUE';
-          const overdueHours = Math.abs(Math.floor(diffMinutes / 60));
-          message = overdueHours > 0
-            ? `Deadline passed ${overdueHours}h ago for "${task.title}".`
-            : `Deadline passed for "${task.title}".`;
+          message = diffMinutes === 0
+            ? `Deadline has arrived for "${task.title}". Complete it now!`
+            : `Deadline has appeared! "${task.title}" is overdue.`;
+        } else if (diffMinutes <= 60 && diffMinutes > 0) {
+          // Trigger 2 in real-time: 1 hour left
+          urgency = 'CRITICAL';
+          message = `1 hour left before deadline for "${task.title}" (${diffMinutes}m remaining)!`;
         }
-      } else if (diffMinutes <= 60) {
-        urgency = 'CRITICAL';
-        message = diffMinutes === 0
-          ? `Urgent: "${task.title}" is due right now!`
-          : `Urgent: "${task.title}" is due in ${diffMinutes}m!`;
-      } else if (diffMinutes <= 180) {
-        urgency = 'UPCOMING';
-        const hours = Math.round(diffMinutes / 60);
-        message = `Approaching: "${task.title}" is due in ~${hours}h.`;
-      }
 
-      if (urgency) {
-        const lastNotified = this.notifiedTaskMap.get(`${task._id}_${urgency}`);
-        const notificationCooldown = 30 * 60 * 1000; // 30 minutes cooldown
+        if (urgency) {
+          const notifKey = `${task._id}_${urgency}`;
+          const lastNotified = this.notifiedTaskMap.get(notifKey);
+          const cooldown = 30 * 60 * 1000;
 
-        const notificationItem: DeadlineNotification = {
-          id: `${task._id}_${urgency}_${Math.floor(now / (5 * 60 * 1000))}`,
-          taskId: task._id,
-          title: task.title,
-          deadline: task.deadline,
-          urgency,
-          minutesRemaining: diffMinutes,
-          message,
-          timestamp: now,
-        };
+          if (!lastNotified || now - lastNotified > cooldown) {
+            this.notifiedTaskMap.set(notifKey, now);
 
-        if (!lastNotified || now - lastNotified > notificationCooldown) {
-          this.notifiedTaskMap.set(`${task._id}_${urgency}`, now);
-          newNotifications.push(notificationItem);
+            const notifItem: DeadlineNotification = {
+              id: `${task._id}_${urgency}_${Math.floor(now / (5 * 60 * 1000))}`,
+              taskId: task._id,
+              title: task.title,
+              deadline: task.deadline,
+              urgency,
+              minutesRemaining: diffMinutes,
+              message,
+              timestamp: now,
+            };
 
-          this.activeNotifications = [
-            notificationItem,
-            ...this.activeNotifications.filter((n) => n.taskId !== task._id),
-          ].slice(0, 20);
+            newNotifications.push(notifItem);
+            this.activeNotifications = [
+              notifItem,
+              ...this.activeNotifications.filter((n) => n.taskId !== task._id),
+            ].slice(0, 20);
 
-          // Trigger system status bar notification immediately
-          NativeNotificationService.showNow(
-            notificationItem.id,
-            urgency === 'OVERDUE' ? '🚨 Overdue Task' : '⏳ Task Deadline Alert',
-            message
-          );
+            NativeNotificationService.showNow(
+              notifItem.id,
+              urgency === 'OVERDUE' ? 'Deadline Reached 🚨' : '1 Hour Left ⏳',
+              message
+            );
 
-          // Trigger physical device vibration
-          if (urgency === 'CRITICAL' || urgency === 'OVERDUE') {
+            // Vibrate device
             try {
               if (Vibration && typeof Vibration.vibrate === 'function') {
                 if (Platform.OS === 'android') {
-                  Vibration.vibrate([0, 200, 100, 200]);
+                  Vibration.vibrate([0, 250, 150, 250]);
                 } else {
                   Vibration.vibrate(400);
                 }
               }
-            } catch {
-              // Gracefully handle if vibration is restricted
-            }
-          }
+            } catch {}
 
-          // Emit to UI listeners
-          this.listeners.forEach((listener) => {
-            try {
-              listener(notificationItem);
-            } catch (err) {
-              console.warn('Notification listener error:', err);
-            }
-          });
+            // Notify UI listeners
+            this.listeners.forEach((listener) => {
+              try { listener(notifItem); } catch {}
+            });
+          }
         }
       }
     }
