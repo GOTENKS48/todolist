@@ -12,6 +12,8 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Share,
+  Image,
+  Alert,
 } from 'react-native';
 import { Colors } from '../theme/colors';
 import { useAppDispatch, useAppSelector } from '../redux/store';
@@ -36,13 +38,14 @@ import { NotificationBanner } from '../components/NotificationBanner';
 import { NotificationCenterModal } from '../components/NotificationCenterModal';
 import { CustomIcon } from '../components/CustomIcon';
 import { notificationService } from '../services/notificationService';
+import { NativeNotificationService } from '../services/nativeNotification';
 
 const SORT_OPTIONS: { id: SortOption; label: string; icon: string; description: string }[] = [
+  { id: 'createdAt', label: 'Recently Created', icon: '✨', description: 'Newest tasks first' },
   { id: 'smartScore', label: 'Smart Score', icon: '⚡', description: 'Urgency & priority algorithm' },
   { id: 'deadline', label: 'Target Deadline', icon: '⏰', description: 'Earliest deadline first' },
   { id: 'priority', label: 'Priority', icon: '🚨', description: 'Urgent to Low' },
   { id: 'dateTime', label: 'Scheduled Date', icon: '📅', description: 'Calendar order' },
-  { id: 'createdAt', label: 'Recently Created', icon: '✨', description: 'Newest tasks first' },
 ];
 
 const CATEGORIES: { id: TaskCategory | 'ALL'; label: string; icon: string }[] = [
@@ -81,7 +84,7 @@ export const HomeScreen: React.FC = () => {
   const [isOptionsMenuVisible, setIsOptionsMenuVisible] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
 
-  // Title state (editable or customizable, defaults to "weekend to-do list")
+  // Title state (defaults to "weekend to-do list")
   const [listTitle, setListTitle] = useState('weekend to-do list');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
@@ -89,6 +92,11 @@ export const HomeScreen: React.FC = () => {
   const [activeNotifications, setActiveNotifications] = useState<DeadlineNotification[]>([]);
   const [bannerNotification, setBannerNotification] = useState<DeadlineNotification | null>(null);
   const [isNotificationCenterVisible, setIsNotificationCenterVisible] = useState(false);
+
+  // Request Android notification permissions and initialize on mount
+  useEffect(() => {
+    notificationService.initPermissions();
+  }, []);
 
   // Load tasks & stats on mount
   const loadData = useCallback(
@@ -233,18 +241,55 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
+  // Browse local storage photo directly from top header
+  const handleBrowseLocalAvatar = async () => {
+    const uri = await NativeNotificationService.pickImage();
+    if (uri) {
+      try {
+        await dispatch(
+          updateUserProfile({
+            name: user?.name || 'Task Champion',
+            avatar: uri,
+          })
+        ).unwrap();
+      } catch (err) {
+        console.warn('Could not update avatar:', err);
+      }
+    }
+  };
+
   const handleLogout = () => {
     setIsOptionsMenuVisible(false);
     dispatch(logoutUser());
   };
 
+  // Click filter again removes the filter
   const handleCycleFilterStatus = () => {
-    const nextStatus: Record<FilterStatus, FilterStatus> = {
-      ALL: 'PENDING',
-      PENDING: 'COMPLETED',
-      COMPLETED: 'ALL',
-    };
-    dispatch(setFilterStatus(nextStatus[filterStatus]));
+    if (filterStatus === 'ALL') {
+      dispatch(setFilterStatus('PENDING'));
+    } else if (filterStatus === 'PENDING') {
+      dispatch(setFilterStatus('COMPLETED'));
+    } else {
+      // Completed -> removes filter back to ALL
+      dispatch(setFilterStatus('ALL'));
+    }
+  };
+
+  const handleToggleSpecificStatus = (status: FilterStatus) => {
+    if (filterStatus === status) {
+      dispatch(setFilterStatus('ALL')); // Clicked again -> removes filter
+    } else {
+      dispatch(setFilterStatus(status));
+    }
+  };
+
+  const handleCategorySelect = (catId: TaskCategory | 'ALL') => {
+    if (selectedCategory === catId) {
+      dispatch(setSelectedCategory('ALL')); // Clicked again -> removes filter
+    } else {
+      dispatch(setSelectedCategory(catId));
+    }
+    setIsCategoryModalVisible(false);
   };
 
   const handleShareList = async () => {
@@ -261,8 +306,18 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
+  // Quick 5-second test alarm notification so user can verify background alerts on their phone
+  const handleTestBackgroundAlert = () => {
+    setIsOptionsMenuVisible(false);
+    notificationService.testBackgroundNotification(5);
+    Alert.alert(
+      'Test Alert Scheduled',
+      'A test notification will trigger in 5 seconds. Minimize or close the app right now to see it in your notification tray!'
+    );
+  };
+
   const currentSortLabel =
-    SORT_OPTIONS.find((s) => s.id === sortBy)?.label || 'Smart Score';
+    SORT_OPTIONS.find((s) => s.id === sortBy)?.label || 'Recently Created';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -283,20 +338,42 @@ export const HomeScreen: React.FC = () => {
         onPressTask={handleSelectTaskFromNotif}
       />
 
-      {/* Central Apple Notes Card exactly like the reference image */}
+      {/* Central Apple Notes Card */}
       <View style={styles.centerCardContainer}>
-        {/* Card Header Bar: Breadcrumb on left, Share & Options on right */}
+        {/* Card Header Bar: Profile picture & name on left, Notifications, Share & Options on right */}
         <View style={styles.cardHeader}>
-          <TouchableOpacity
-            style={styles.breadcrumbBtn}
-            onPress={() => setIsProfileModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <CustomIcon name="chevron-left" size={16} color="#C59158" />
-            <Text style={styles.breadcrumbText}>
-              {user?.name ? user.name.split(' ')[0] : 'TaskOrbit'}
-            </Text>
-          </TouchableOpacity>
+          {/* User Profile Avatar & Name */}
+          <View style={styles.profileHeaderGroup}>
+            <TouchableOpacity
+              style={styles.avatarTouchBtn}
+              onPress={handleBrowseLocalAvatar}
+              activeOpacity={0.7}
+              accessibilityLabel="Change profile picture"
+            >
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.profileAvatar} />
+              ) : (
+                <View style={styles.profileAvatarFallback}>
+                  <Text style={styles.profileAvatarInitial}>
+                    {user?.name ? user.name.charAt(0).toUpperCase() : 'T'}
+                  </Text>
+                </View>
+              )}
+              {/* Camera browse badge */}
+              <View style={styles.avatarCameraBadge}>
+                <CustomIcon name="camera" size={9} color="#FFFDF9" />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setIsProfileModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.breadcrumbText} numberOfLines={1}>
+                {user?.name || 'TaskOrbit'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.headerRightActions}>
             {/* Notification Bell with Badge */}
@@ -354,7 +431,7 @@ export const HomeScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Clean "Sorted by" Button (as explicitly requested: dont remove sorting but make another button to show sorted by cleanly) */}
+        {/* Clean "Sorted by" Button (default Recently Created) */}
         <View style={styles.sortBarWrapper}>
           <TouchableOpacity
             style={styles.cleanSortBtn}
@@ -367,30 +444,32 @@ export const HomeScreen: React.FC = () => {
             <Text style={styles.cleanSortChevron}>▾</Text>
           </TouchableOpacity>
 
-          {/* Active Filter Status Badge if not ALL */}
+          {/* Active Filter Status Badge: Tapping removes the filter */}
           {filterStatus !== 'ALL' && (
             <TouchableOpacity
               style={styles.activeFilterPill}
-              onPress={handleCycleFilterStatus}
+              onPress={() => dispatch(setFilterStatus('ALL'))}
+              activeOpacity={0.7}
             >
               <Text style={styles.activeFilterPillText}>
-                {filterStatus === 'PENDING' ? '⏳ Pending' : '✓ Completed'}
+                {filterStatus === 'PENDING' ? '⏳ Pending ✕' : '✓ Completed ✕'}
               </Text>
             </TouchableOpacity>
           )}
 
-          {/* Active Category Badge if not ALL */}
+          {/* Active Category Badge: Tapping removes the filter */}
           {selectedCategory !== 'ALL' && (
             <TouchableOpacity
               style={styles.activeCategoryPill}
-              onPress={() => setIsCategoryModalVisible(true)}
+              onPress={() => dispatch(setSelectedCategory('ALL'))}
+              activeOpacity={0.7}
             >
-              <Text style={styles.activeCategoryPillText}>{selectedCategory}</Text>
+              <Text style={styles.activeCategoryPillText}>{selectedCategory} ✕</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        {/* Inline Search Bar (toggled via bottom search icon) */}
+        {/* Inline Search Bar */}
         {isSearchActive && (
           <View style={styles.inlineSearchRow}>
             <CustomIcon name="search" size={14} color="#C59158" />
@@ -435,24 +514,27 @@ export const HomeScreen: React.FC = () => {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyIcon}>📝</Text>
-              <Text style={styles.emptyTitle}>Nothing on the list yet</Text>
+              <Text style={styles.emptyTitle}>Nothing on the list</Text>
               <Text style={styles.emptySubtitle}>
-                Tap the pencil icon below to write your first task.
+                Tap the + button to write your first task.
               </Text>
-              <TouchableOpacity
-                style={styles.emptyAddBtn}
-                onPress={handleOpenCreate}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.emptyAddBtnText}>+ Add a Task</Text>
-              </TouchableOpacity>
             </View>
           }
         />
 
-        {/* Pinned Bottom Toolbar (exactly matching reference image: Checklist, Camera/Search, Attachment/Category, Pencil/Add) */}
+        {/* Elevated + Button Above Bottom Row */}
+        <TouchableOpacity
+          style={styles.floatingPlusBtn}
+          onPress={handleOpenCreate}
+          activeOpacity={0.85}
+          accessibilityLabel="Create task"
+        >
+          <CustomIcon name="plus" size={24} color="#FFFDF9" />
+        </TouchableOpacity>
+
+        {/* Pinned Bottom Toolbar (Removed create task, only filter, search, category) */}
         <View style={styles.pinnedToolbar}>
-          {/* 1. Checklist / Status Filter Toggle */}
+          {/* 1. Checklist / Status Filter Toggle (Clicking removes filter) */}
           <TouchableOpacity
             style={styles.toolbarBtn}
             onPress={handleCycleFilterStatus}
@@ -467,7 +549,7 @@ export const HomeScreen: React.FC = () => {
             {filterStatus !== 'ALL' && <View style={styles.toolbarIndicatorDot} />}
           </TouchableOpacity>
 
-          {/* 2. Search Toggle (matches camera/search slot in reference) */}
+          {/* 2. Search Toggle */}
           <TouchableOpacity
             style={styles.toolbarBtn}
             onPress={() => setIsSearchActive(!isSearchActive)}
@@ -481,7 +563,7 @@ export const HomeScreen: React.FC = () => {
             />
           </TouchableOpacity>
 
-          {/* 3. Attachment / Category Filter (matches paperclip slot in reference) */}
+          {/* 3. Attachment / Category Filter (Clicking removes filter) */}
           <TouchableOpacity
             style={styles.toolbarBtn}
             onPress={() => setIsCategoryModalVisible(true)}
@@ -494,16 +576,6 @@ export const HomeScreen: React.FC = () => {
               color={selectedCategory !== 'ALL' ? '#C59158' : '#B89B7B'}
             />
             {selectedCategory !== 'ALL' && <View style={styles.toolbarIndicatorDot} />}
-          </TouchableOpacity>
-
-          {/* 4. Pencil / New Task Composer (matches pencil slot in reference) */}
-          <TouchableOpacity
-            style={styles.toolbarBtn}
-            onPress={handleOpenCreate}
-            activeOpacity={0.65}
-            accessibilityLabel="Create new task"
-          >
-            <CustomIcon name="edit" size={23} color="#C59158" />
           </TouchableOpacity>
         </View>
       </View>
@@ -566,7 +638,7 @@ export const HomeScreen: React.FC = () => {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Category Filter Picker Modal */}
+      {/* Category Filter Picker Modal (Clicking selected category removes filter) */}
       <Modal
         visible={isCategoryModalVisible}
         transparent
@@ -594,10 +666,7 @@ export const HomeScreen: React.FC = () => {
                         styles.pickerOptionRow,
                         isSelected && styles.pickerOptionRowSelected,
                       ]}
-                      onPress={() => {
-                        dispatch(setSelectedCategory(cat.id));
-                        setIsCategoryModalVisible(false);
-                      }}
+                      onPress={() => handleCategorySelect(cat.id)}
                       activeOpacity={0.7}
                     >
                       <Text style={styles.pickerOptionIcon}>{cat.icon}</Text>
@@ -608,7 +677,7 @@ export const HomeScreen: React.FC = () => {
                             isSelected && styles.pickerOptionLabelSelected,
                           ]}
                         >
-                          {cat.label}
+                          {cat.label} {isSelected && '(Tap to remove)'}
                         </Text>
                       </View>
                       {isSelected && (
@@ -657,6 +726,20 @@ export const HomeScreen: React.FC = () => {
                   </View>
                 </TouchableOpacity>
 
+                {/* Test Background Notification */}
+                <TouchableOpacity
+                  style={styles.pickerOptionRow}
+                  onPress={handleTestBackgroundAlert}
+                >
+                  <Text style={styles.pickerOptionIcon}>🔔</Text>
+                  <View style={styles.pickerOptionTextWrap}>
+                    <Text style={styles.pickerOptionLabel}>Test Background Alert (in 5s)</Text>
+                    <Text style={styles.pickerOptionDesc}>
+                      Minimise app to test status bar push notification!
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
                 {/* Deadline Alerts */}
                 <TouchableOpacity
                   style={styles.pickerOptionRow}
@@ -665,11 +748,11 @@ export const HomeScreen: React.FC = () => {
                     setIsNotificationCenterVisible(true);
                   }}
                 >
-                  <Text style={styles.pickerOptionIcon}>🔔</Text>
+                  <Text style={styles.pickerOptionIcon}>📋</Text>
                   <View style={styles.pickerOptionTextWrap}>
-                    <Text style={styles.pickerOptionLabel}>Deadline Notification Center</Text>
+                    <Text style={styles.pickerOptionLabel}>Active Notification Center</Text>
                     <Text style={styles.pickerOptionDesc}>
-                      {activeNotifications.length} active alerts
+                      {activeNotifications.length} active deadline alerts
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -745,7 +828,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F6ECE1',
   },
-  // Abstract background shapes matching reference art
   backgroundDecorativeContainer: {
     position: 'absolute',
     top: 0,
@@ -796,7 +878,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5E2C4',
     opacity: 0.85,
   },
-  // Central Apple Notes Paper Card
   centerCardContainer: {
     flex: 1,
     marginHorizontal: 16,
@@ -818,18 +899,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 18,
+    paddingTop: 16,
     paddingBottom: 8,
   },
-  breadcrumbBtn: {
+  profileHeaderGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 10,
+    flex: 1,
+  },
+  avatarTouchBtn: {
+    position: 'relative',
+  },
+  profileAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#C59158',
+  },
+  profileAvatarFallback: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FAF5EE',
+    borderWidth: 1.5,
+    borderColor: '#C59158',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileAvatarInitial: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#C59158',
+  },
+  avatarCameraBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#C59158',
+    borderRadius: 8,
+    width: 14,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   breadcrumbText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#C59158',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2B2521',
     letterSpacing: -0.2,
   },
   headerRightActions: {
@@ -862,7 +980,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 8,
     paddingBottom: 6,
   },
   titleText: {
@@ -882,7 +1000,6 @@ const styles = StyleSheet.create({
     borderBottomColor: '#C59158',
     paddingBottom: 2,
   },
-  // Clean "Sorted by" button & active tags bar
   sortBarWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -966,7 +1083,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 14,
-    paddingBottom: 24,
+    paddingBottom: 90,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -991,18 +1108,27 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 16,
   },
-  emptyAddBtn: {
+  // Floating + button positioned right above bottom row
+  floatingPlusBtn: {
+    position: 'absolute',
+    bottom: 74,
+    right: 20,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: '#C59158',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#C59158',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 1.5,
+    borderColor: '#FFFDF9',
+    zIndex: 10,
   },
-  emptyAddBtnText: {
-    color: '#FFFDF9',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  // Pinned Bottom Toolbar inside card (4 icons matching reference)
+  // Pinned Bottom Toolbar
   pinnedToolbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1028,7 +1154,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#C59158',
   },
-  // Pickers & Modals
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(35, 27, 20, 0.45)',

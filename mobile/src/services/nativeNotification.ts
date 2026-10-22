@@ -58,4 +58,22 @@ export class NativeNotificationService {
       }
     }
   }
+
+  /**
+   * Launch native image picker to browse local photos from device storage
+   */
+  public static async pickImage(): Promise<string | null> {
+    if (Platform.OS === 'android' && TaskNotificationModule?.pickImage) {
+      try {
+        const uri = await TaskNotificationModule.pickImage();
+        return uri;
+      } catch (err: any) {
+        if (err?.code !== 'CANCELLED') {
+          console.warn('Image picker error:', err);
+        }
+        return null;
+      }
+    }
+    return null;
+  }
 }

@@ -30,7 +30,7 @@ const initialState: TaskState = {
   stats: initialStats,
   filterStatus: 'ALL',
   selectedCategory: 'ALL',
-  sortBy: 'smartScore',
+  sortBy: 'createdAt',
   searchQuery: '',
   isLoading: false,
   isRefreshing: false,

@@ -15,6 +15,7 @@ import {
 import { Colors } from '../theme/colors';
 import { User } from '../types';
 import { CustomIcon } from './CustomIcon';
+import { NativeNotificationService } from '../services/nativeNotification';
 
 interface Props {
   visible: boolean;
@@ -134,6 +135,21 @@ export const ProfileModal: React.FC<Props> = ({
 
               <Text style={styles.previewName}>{name || 'Your Name'}</Text>
               <Text style={styles.previewEmail}>{user?.email || 'user@proflow.io'}</Text>
+
+              {/* Local Storage Browse Button */}
+              <TouchableOpacity
+                style={styles.browseLocalBtn}
+                onPress={async () => {
+                  const uri = await NativeNotificationService.pickImage();
+                  if (uri) {
+                    setSelectedAvatar(uri);
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <CustomIcon name="camera" size={16} color="#FFFDF9" />
+                <Text style={styles.browseLocalBtnText}>📁 Choose from Phone Gallery</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Avatar Preset Grid */}
@@ -499,6 +515,26 @@ const styles = StyleSheet.create({
   saveBtnText: {
     color: Colors.white,
     fontSize: 14,
+    fontWeight: '700',
+  },
+  browseLocalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#C59158',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 12,
+    shadowColor: '#C59158',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  browseLocalBtnText: {
+    color: '#FFFDF9',
+    fontSize: 13,
     fontWeight: '700',
   },
 });

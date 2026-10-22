@@ -11,6 +11,26 @@ class NotificationService {
   private activeNotifications: DeadlineNotification[] = [];
 
   /**
+   * Request notification permission on Android 13+
+   */
+  public async initPermissions(): Promise<boolean> {
+    return await NativeNotificationService.requestPermission();
+  }
+
+  /**
+   * Schedule a quick test notification to verify background alerts
+   */
+  public testBackgroundNotification(secondsDelay = 5): void {
+    const triggerTime = Date.now() + secondsDelay * 1000;
+    NativeNotificationService.schedule(
+      `test_${Date.now()}`,
+      'TaskOrbit Alert 🔔',
+      'Background notifications are working smoothly even when closed!',
+      triggerTime
+    );
+  }
+
+  /**
    * Subscribe to real-time deadline alerts
    */
   public subscribe(listener: NotificationListener): () => void {

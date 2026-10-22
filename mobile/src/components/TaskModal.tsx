@@ -261,7 +261,6 @@ export const TaskModal: React.FC<Props> = ({
                         onPress={() => setCategory(c)}
                         activeOpacity={0.7}
                       >
-                        <View style={[styles.catDot, { backgroundColor: col.dot }]} />
                         <Text
                           style={[
                             styles.categorySelectText,
