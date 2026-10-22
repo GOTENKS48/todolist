@@ -5,7 +5,7 @@
   <br/>
   <em><strong>TaskOrbit</strong> - Aesthetic, Smart Task Priority & Deadline Management</em>
   <br/><br/>
-  <a href="https://gofile.io/d/6AJrpmHP"><strong>⬇ Download Android APK on GoFile (Latest Build)</strong></a>
+  <a href="https://gofile.io/d/JhQ58eIg"><strong>⬇ Download Android APK on GoFile (24/7 Cloud Build)</strong></a>
 </p>
 
 ---

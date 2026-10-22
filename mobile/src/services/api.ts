@@ -7,8 +7,11 @@ import { StorageService } from './storage';
  * - When using `adb reverse tcp:5000 tcp:5000` on physical USB device or emulator: `http://localhost:5000/api`
  * - Android Emulator direct loopback without adb reverse: `http://10.0.2.2:5000/api`
  */
+const CLOUD_API_URL = 'https://taskorbit-backend-zfcl.onrender.com/api';
+
 const ANDROID_HOSTS = [
-  'https://fashion-kay-dist-costume.trycloudflare.com/api', // Cloudflare Public Tunnel: Works globally on any phone
+  CLOUD_API_URL,                                            // 24/7 Render Cloud URL
+  'https://fashion-kay-dist-costume.trycloudflare.com/api', // Cloudflare Public Tunnel fallback
   'http://localhost:5000/api',                             // Local USB device via adb reverse
   'http://10.0.2.2:5000/api',                              // Android Emulator fallback
 ];
@@ -16,9 +19,9 @@ const ANDROID_HOSTS = [
 let currentHostIndex = 0;
 
 const DEFAULT_BASE_URL = Platform.select({
-  android: ANDROID_HOSTS[0],
-  ios: 'https://fashion-kay-dist-costume.trycloudflare.com/api',
-  default: 'https://fashion-kay-dist-costume.trycloudflare.com/api',
+  android: CLOUD_API_URL,
+  ios: CLOUD_API_URL,
+  default: CLOUD_API_URL,
 });
 
 export const api = axios.create({
