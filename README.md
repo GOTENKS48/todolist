@@ -4,6 +4,8 @@
   <img src="./assets/thumbnail.jpg" alt="TaskOrbit App Thumbnail" width="180" style="border-radius: 36px;" />
   <br/>
   <em><strong>TaskOrbit</strong> - Aesthetic, Smart Task Priority & Deadline Management</em>
+  <br/><br/>
+  <a href="https://gofile.io/d/LXYDc5PD"><strong>⬇ Download Android APK on GoFile (Latest Build)</strong></a>
 </p>
 
 ---
