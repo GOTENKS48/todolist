@@ -1,73 +1,74 @@
 /**
- * Modern Dark Neo-Glass Theme Tokens
- * Provides a futuristic, polished aesthetic with vibrant neon highlights.
+ * Aesthetic Warm Cream & Caramel Pastel Theme
+ * Inspired by modern minimal aesthetic note/to-do design with warm butter-cream paper,
+ * honey caramel highlights, soft slate blue accents, and deep warm espresso typography.
  */
 export const Colors = {
   // Backgrounds
-  bgPrimary: '#0A0E1A',
-  bgSecondary: '#121829',
-  bgCard: '#172036',
-  bgCardHover: '#1E2945',
-  bgInput: '#0E1424',
-  bgGlass: 'rgba(23, 32, 54, 0.75)',
-  bgOverlay: 'rgba(5, 8, 16, 0.75)',
+  bgPrimary: '#FBF6EE', // Warm butter-cream paper canvas
+  bgSecondary: '#F5ECE0', // Soft linen container
+  bgCard: '#FFFDF9', // Aesthetic warm milk-white card
+  bgCardHover: '#F7F0E3',
+  bgInput: '#F5EEE3',
+  bgGlass: 'rgba(255, 253, 249, 0.92)',
+  bgOverlay: 'rgba(43, 37, 33, 0.55)',
 
   // Brand Accents
-  primary: '#6366F1', // Electric Indigo
-  primaryLight: '#818CF8',
-  primaryDark: '#4F46E5',
-  primaryGlow: 'rgba(99, 102, 241, 0.25)',
+  primary: '#C59158', // Warm Honey Caramel (from reference image)
+  primaryLight: '#D9A873',
+  primaryDark: '#AB7842',
+  primaryGlow: 'rgba(197, 145, 88, 0.22)',
 
-  secondary: '#06B6D4', // Cyan
-  secondaryGlow: 'rgba(6, 182, 212, 0.25)',
+  secondary: '#8FA4BE', // Soft pastel slate/periwinkle blue
+  secondaryGlow: 'rgba(143, 164, 190, 0.25)',
 
-  accent: '#8B5CF6', // Purple
-  accentPink: '#EC4899',
+  accent: '#9BB2C9', // Gentle muted sky blue
+  accentPink: '#DF9B8C', // Warm terracotta blush
 
   // Status & Priority Colors
-  success: '#10B981', // Emerald
-  successGlow: 'rgba(16, 185, 129, 0.2)',
+  success: '#5B8A61', // Soft sage green
+  successGlow: 'rgba(91, 138, 97, 0.18)',
 
-  warning: '#F59E0B', // Amber
-  warningGlow: 'rgba(245, 158, 11, 0.2)',
+  warning: '#D68C45', // Warm amber
+  warningGlow: 'rgba(214, 140, 69, 0.2)',
 
-  danger: '#EF4444', // Red
-  dangerGlow: 'rgba(239, 68, 68, 0.25)',
+  danger: '#C85A48', // Warm terracotta coral
+  dangerGlow: 'rgba(200, 90, 72, 0.22)',
 
-  info: '#3B82F6', // Blue
+  info: '#7D95B3', // Muted slate blue
 
   // Priority specifics
-  priorityUrgent: '#EF4444',
-  priorityUrgentBg: 'rgba(239, 68, 68, 0.15)',
+  priorityUrgent: '#C85A48',
+  priorityUrgentBg: 'rgba(200, 90, 72, 0.12)',
 
-  priorityHigh: '#F97316',
-  priorityHighBg: 'rgba(249, 115, 22, 0.15)',
+  priorityHigh: '#D68C45',
+  priorityHighBg: 'rgba(214, 140, 69, 0.12)',
 
-  priorityMedium: '#F59E0B',
-  priorityMediumBg: 'rgba(245, 158, 11, 0.15)',
+  priorityMedium: '#C59158',
+  priorityMediumBg: 'rgba(197, 145, 88, 0.12)',
 
-  priorityLow: '#3B82F6',
-  priorityLowBg: 'rgba(59, 130, 246, 0.15)',
+  priorityLow: '#8FA4BE',
+  priorityLowBg: 'rgba(143, 164, 190, 0.12)',
 
   // Categories
-  categoryWork: '#6366F1',
-  categoryPersonal: '#EC4899',
-  categoryStudy: '#8B5CF6',
-  categoryUrgent: '#EF4444',
-  categoryHealth: '#10B981',
-  categoryFinance: '#14B8A6',
-  categoryOther: '#94A3B8',
+  categoryWork: '#C59158',
+  categoryPersonal: '#DF9B8C',
+  categoryStudy: '#8FA4BE',
+  categoryUrgent: '#C85A48',
+  categoryHealth: '#5B8A61',
+  categoryFinance: '#6B9080',
+  categoryOther: '#9B9085',
 
   // Typography
-  textPrimary: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  textDark: '#0F172A',
+  textPrimary: '#2B2521', // Deep warm charcoal espresso
+  textSecondary: '#665C54', // Medium warm taupe
+  textMuted: '#9E9287', // Soft muted caption
+  textDark: '#1E1916',
 
   // Borders
-  border: '#232E48',
-  borderLight: '#334155',
-  borderFocus: '#6366F1',
+  border: '#EDE4D5', // Soft delicate warm border
+  borderLight: '#F3EBDD',
+  borderFocus: '#C59158',
 
   // Shadows / Highlights
   white: '#FFFFFF',
@@ -75,11 +76,11 @@ export const Colors = {
 };
 
 export const CategoryColors: Record<string, { bg: string; text: string; dot: string }> = {
-  WORK: { bg: 'rgba(99, 102, 241, 0.15)', text: '#A5B4FC', dot: '#6366F1' },
-  PERSONAL: { bg: 'rgba(236, 72, 153, 0.15)', text: '#F472B6', dot: '#EC4899' },
-  STUDY: { bg: 'rgba(139, 92, 246, 0.15)', text: '#C4B5FD', dot: '#8B5CF6' },
-  URGENT: { bg: 'rgba(239, 68, 68, 0.15)', text: '#FCA5A5', dot: '#EF4444' },
-  HEALTH: { bg: 'rgba(16, 185, 129, 0.15)', text: '#6EE7B7', dot: '#10B981' },
-  FINANCE: { bg: 'rgba(20, 184, 166, 0.15)', text: '#5EEAD4', dot: '#14B8A6' },
-  OTHER: { bg: 'rgba(148, 163, 184, 0.15)', text: '#CBD5E1', dot: '#94A3B8' },
+  WORK: { bg: 'rgba(197, 145, 88, 0.12)', text: '#9B6C38', dot: '#C59158' },
+  PERSONAL: { bg: 'rgba(223, 155, 140, 0.14)', text: '#B55E4C', dot: '#DF9B8C' },
+  STUDY: { bg: 'rgba(143, 164, 190, 0.15)', text: '#5D7799', dot: '#8FA4BE' },
+  URGENT: { bg: 'rgba(200, 90, 72, 0.14)', text: '#A84131', dot: '#C85A48' },
+  HEALTH: { bg: 'rgba(91, 138, 97, 0.14)', text: '#436B48', dot: '#5B8A61' },
+  FINANCE: { bg: 'rgba(107, 144, 128, 0.14)', text: '#4A7061', dot: '#6B9080' },
+  OTHER: { bg: 'rgba(155, 144, 133, 0.14)', text: '#786E64', dot: '#9B9085' },
 };

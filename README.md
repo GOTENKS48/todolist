@@ -1,6 +1,10 @@
 # 🚀 TaskOrbit - To-Do List Application (React Native CLI + Node.js/MongoDB Backend)
 
-A full-stack mobile application built with **React Native CLI (TypeScript)**, **Redux Toolkit**, and a resilient **Node.js Express + MongoDB** backend API with **JWT Authentication**.
+<p align="center">
+  <img src="./assets/thumbnail.jpg" alt="TaskOrbit App Thumbnail" width="180" style="border-radius: 36px;" />
+  <br/>
+  <em><strong>TaskOrbit</strong> - Aesthetic, Smart Task Priority & Deadline Management</em>
+</p>
 
 ---
 

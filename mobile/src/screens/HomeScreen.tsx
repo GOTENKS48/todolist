@@ -237,7 +237,7 @@ export const HomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
 
       {/* Real-time Deadline Floating Push Banner */}
       <NotificationBanner

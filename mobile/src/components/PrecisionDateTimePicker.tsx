@@ -3,6 +3,7 @@ import {
   Modal,
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -43,35 +44,168 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
     if (onClose) onClose();
     else if (onCancel) onCancel();
   };
+
   // Working date state
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(initialDate));
   const [viewYear, setViewYear] = useState<number>(initialDate.getFullYear());
   const [viewMonth, setViewMonth] = useState<number>(initialDate.getMonth());
 
-  // Time components
+  // Stepper Time components
   const [hour12, setHour12] = useState<number>(() => {
     const h = initialDate.getHours();
     return h === 0 ? 12 : h > 12 ? h - 12 : h;
   });
   const [minute, setMinute] = useState<number>(initialDate.getMinutes());
   const [isPM, setIsPM] = useState<boolean>(initialDate.getHours() >= 12);
-  const [activeTab, setActiveTab] = useState<'date' | 'time'>('date');
 
+  // Tabs: 'calendar' | 'time' | 'type'
+  const [activeTab, setActiveTab] = useState<'calendar' | 'time' | 'type'>('type');
+
+  // Direct Typable inputs
+  const [typeYear, setTypeYear] = useState<string>('');
+  const [typeMonth, setTypeMonth] = useState<string>('');
+  const [typeDay, setTypeDay] = useState<string>('');
+  const [typeHour, setTypeHour] = useState<string>('');
+  const [typeMinute, setTypeMinute] = useState<string>('');
+  const [typeIsPM, setTypeIsPM] = useState<boolean>(false);
+  const [typeValidation, setTypeValidation] = useState<{
+    isValid: boolean;
+    message: string;
+    parsedDate: Date | null;
+  }>({ isValid: true, message: '', parsedDate: null });
+
+  // Initialize and sync when opened
   useEffect(() => {
     if (visible) {
       const d = new Date(initialDate);
       setSelectedDate(d);
       setViewYear(d.getFullYear());
       setViewMonth(d.getMonth());
+
       const h = d.getHours();
-      setHour12(h === 0 ? 12 : h > 12 ? h - 12 : h);
+      const currentH12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      const currentPM = h >= 12;
+
+      setHour12(currentH12);
       setMinute(d.getMinutes());
-      setIsPM(h >= 12);
-      setActiveTab('date');
+      setIsPM(currentPM);
+
+      // Populate typable input fields
+      const yStr = d.getFullYear().toString();
+      const mStr = (d.getMonth() + 1).toString().padStart(2, '0');
+      const dStr = d.getDate().toString().padStart(2, '0');
+      const hStr = currentH12.toString();
+      const minStr = d.getMinutes().toString().padStart(2, '0');
+
+      setTypeYear(yStr);
+      setTypeMonth(mStr);
+      setTypeDay(dStr);
+      setTypeHour(hStr);
+      setTypeMinute(minStr);
+      setTypeIsPM(currentPM);
+
+      validateAndSetTyped(yStr, mStr, dStr, hStr, minStr, currentPM);
+      setActiveTab('type');
     }
   }, [visible, initialDate]);
 
-  // Sync selectedDate hours and minutes when time states change
+  // Validation function for eligible date and time
+  const validateAndSetTyped = (
+    yStr: string,
+    mStr: string,
+    dStr: string,
+    hStr: string,
+    minStr: string,
+    pm: boolean
+  ) => {
+    const y = parseInt(yStr, 10);
+    const m = parseInt(mStr, 10);
+    const d = parseInt(dStr, 10);
+    const h = parseInt(hStr, 10);
+    const min = parseInt(minStr, 10);
+
+    if (isNaN(y) || y < 2024 || y > 2040) {
+      setTypeValidation({
+        isValid: false,
+        message: '⚠️ Year must be between 2024 and 2040',
+        parsedDate: null,
+      });
+      return false;
+    }
+
+    if (isNaN(m) || m < 1 || m > 12) {
+      setTypeValidation({
+        isValid: false,
+        message: '⚠️ Month must be between 01 and 12',
+        parsedDate: null,
+      });
+      return false;
+    }
+
+    // Days in month validation (including leap year)
+    const maxDays = new Date(y, m, 0).getDate();
+    if (isNaN(d) || d < 1 || d > maxDays) {
+      const monthName = MONTH_NAMES[m - 1] || 'This month';
+      setTypeValidation({
+        isValid: false,
+        message: `⚠️ ${monthName} ${y} has only ${maxDays} days`,
+        parsedDate: null,
+      });
+      return false;
+    }
+
+    if (isNaN(h) || h < 1 || h > 12) {
+      setTypeValidation({
+        isValid: false,
+        message: '⚠️ Hour must be between 1 and 12',
+        parsedDate: null,
+      });
+      return false;
+    }
+
+    if (isNaN(min) || min < 0 || min > 59) {
+      setTypeValidation({
+        isValid: false,
+        message: '⚠️ Minute must be between 00 and 59',
+        parsedDate: null,
+      });
+      return false;
+    }
+
+    // Convert 12h to 24h
+    let militaryHour = h;
+    if (pm) {
+      if (militaryHour < 12) militaryHour += 12;
+    } else {
+      if (militaryHour === 12) militaryHour = 0;
+    }
+
+    const constructed = new Date(y, m - 1, d, militaryHour, min, 0, 0);
+    if (isNaN(constructed.getTime())) {
+      setTypeValidation({
+        isValid: false,
+        message: '⚠️ Invalid date representation',
+        parsedDate: null,
+      });
+      return false;
+    }
+
+    setSelectedDate(constructed);
+    setViewYear(y);
+    setViewMonth(m - 1);
+    setHour12(h);
+    setMinute(min);
+    setIsPM(pm);
+
+    setTypeValidation({
+      isValid: true,
+      message: `✓ Eligible: ${MONTH_NAMES[m - 1].slice(0, 3)} ${d}, ${y} at ${h}:${min.toString().padStart(2, '0')} ${pm ? 'PM' : 'AM'}`,
+      parsedDate: constructed,
+    });
+    return true;
+  };
+
+  // Sync selectedDate hours and minutes when stepper time states change
   const updateWorkingDateTime = (newH12: number, newMin: number, newIsPM: boolean) => {
     let militaryHours = newH12;
     if (newIsPM) {
@@ -83,6 +217,11 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
     const updated = new Date(selectedDate);
     updated.setHours(militaryHours, newMin, 0, 0);
     setSelectedDate(updated);
+
+    // Sync typable inputs
+    setTypeHour(newH12.toString());
+    setTypeMinute(newMin.toString().padStart(2, '0'));
+    setTypeIsPM(newIsPM);
   };
 
   const handlePrevMonth = () => {
@@ -125,57 +264,85 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
 
     const newDate = new Date(viewYear, viewMonth, day, militaryHours, minute, 0, 0);
     setSelectedDate(newDate);
+
+    // Sync typable inputs
+    setTypeYear(viewYear.toString());
+    setTypeMonth((viewMonth + 1).toString().padStart(2, '0'));
+    setTypeDay(day.toString().padStart(2, '0'));
+    validateAndSetTyped(
+      viewYear.toString(),
+      (viewMonth + 1).toString().padStart(2, '0'),
+      day.toString().padStart(2, '0'),
+      hour12.toString(),
+      minute.toString().padStart(2, '0'),
+      isPM
+    );
   };
 
-  // Quick Date presets
-  const applyDatePreset = (preset: 'today' | 'tomorrow' | 'in3days' | 'nextWeek') => {
-    const d = new Date();
-    if (preset === 'tomorrow') {
-      d.setDate(d.getDate() + 1);
-    } else if (preset === 'in3days') {
-      d.setDate(d.getDate() + 3);
+  // Quick Presets
+  const applyDatePreset = (preset: 'today' | 'tomorrow' | 'weekend' | 'nextWeek') => {
+    const target = new Date();
+    if (preset === 'today') {
+      // keep today
+    } else if (preset === 'tomorrow') {
+      target.setDate(target.getDate() + 1);
+    } else if (preset === 'weekend') {
+      const day = target.getDay();
+      const daysUntilSaturday = (6 - day + 7) % 7 || 7;
+      target.setDate(target.getDate() + daysUntilSaturday);
     } else if (preset === 'nextWeek') {
-      d.setDate(d.getDate() + 7);
+      target.setDate(target.getDate() + 7);
     }
-    setViewYear(d.getFullYear());
-    setViewMonth(d.getMonth());
 
-    let militaryHours = hour12;
-    if (isPM) {
-      if (militaryHours < 12) militaryHours += 12;
-    } else {
-      if (militaryHours === 12) militaryHours = 0;
-    }
-    d.setHours(militaryHours, minute, 0, 0);
-    setSelectedDate(d);
+    target.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
+    setSelectedDate(target);
+    setViewYear(target.getFullYear());
+    setViewMonth(target.getMonth());
+
+    const yStr = target.getFullYear().toString();
+    const mStr = (target.getMonth() + 1).toString().padStart(2, '0');
+    const dStr = target.getDate().toString().padStart(2, '0');
+    setTypeYear(yStr);
+    setTypeMonth(mStr);
+    setTypeDay(dStr);
+    validateAndSetTyped(yStr, mStr, dStr, typeHour, typeMinute, typeIsPM);
   };
 
-  // Time adjustments
+  // Quick Time Adjusters
   const adjustHour = (delta: number) => {
-    let next = hour12 + delta;
-    if (next > 12) next = 1;
-    if (next < 1) next = 12;
-    setHour12(next);
-    updateWorkingDateTime(next, minute, isPM);
+    let newH = hour12 + delta;
+    let newPM = isPM;
+
+    if (newH > 12) {
+      newH = 1;
+      newPM = !newPM;
+    } else if (newH < 1) {
+      newH = 12;
+      newPM = !newPM;
+    }
+
+    setHour12(newH);
+    setIsPM(newPM);
+    updateWorkingDateTime(newH, minute, newPM);
   };
 
   const adjustMinute = (delta: number) => {
-    let next = minute + delta;
-    if (next >= 60) {
-      next = next % 60;
-      adjustHour(1);
-    } else if (next < 0) {
-      next = 60 + (next % 60);
-      adjustHour(-1);
-    }
-    setMinute(next);
-    updateWorkingDateTime(hour12, next, isPM);
-  };
+    let newMin = minute + delta;
+    let newH = hour12;
+    let newPM = isPM;
 
-  const toggleAMPM = () => {
-    const nextIsPM = !isPM;
-    setIsPM(nextIsPM);
-    updateWorkingDateTime(hour12, minute, nextIsPM);
+    if (newMin >= 60) {
+      newMin = newMin % 60;
+      adjustHour(1);
+      return;
+    } else if (newMin < 0) {
+      newMin = 60 + (newMin % 60);
+      adjustHour(-1);
+      return;
+    }
+
+    setMinute(newMin);
+    updateWorkingDateTime(newH, newMin, newPM);
   };
 
   const applyTimePreset = (h: number, m: number, pm: boolean) => {
@@ -186,39 +353,41 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
   };
 
   const handleConfirm = () => {
+    if (activeTab === 'type' && !typeValidation.isValid) {
+      // Re-validate to ensure valid
+      const ok = validateAndSetTyped(typeYear, typeMonth, typeDay, typeHour, typeMinute, typeIsPM);
+      if (!ok) return;
+    }
     onConfirm(selectedDate);
+    handleDismiss();
   };
 
   const formattedDateTimePreview = () => {
-    const d = selectedDate;
-    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-    const monthName = d.toLocaleDateString('en-US', { month: 'short' });
-    const dayNum = d.getDate();
-    const yearNum = d.getFullYear();
-    const mStr = minute.toString().padStart(2, '0');
-    const hStr = hour12.toString().padStart(2, '0');
-    const ampmStr = isPM ? 'PM' : 'AM';
-    return `${dayName}, ${monthName} ${dayNum}, ${yearNum} • ${hStr}:${mStr} ${ampmStr}`;
+    return selectedDate.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
   };
 
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="fade"
-      onRequestClose={onCancel}
+      transparent
+      onRequestClose={handleDismiss}
     >
       <View style={styles.backdrop}>
         <View style={styles.modalCard}>
           {/* Header */}
           <View style={styles.modalHeader}>
             <View style={styles.headerLeft}>
-              <View style={styles.titleIconBadge}>
-                <CustomIcon
-                  name={activeTab === 'date' ? 'calendar' : 'clock'}
-                  size={16}
-                  color={Colors.primary}
-                />
+              <View style={[styles.titleIconBadge, { backgroundColor: Colors.primaryGlow }]}>
+                <CustomIcon name="clock" size={16} color={Colors.primary} />
               </View>
               <Text style={styles.modalTitle}>{title}</Text>
             </View>
@@ -229,28 +398,41 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
 
           {/* Live Preview Banner */}
           <View style={styles.previewBanner}>
-            <CustomIcon name="clock" size={14} color={Colors.primary} />
+            <CustomIcon name="sparkles" size={14} color={Colors.primary} />
             <Text style={styles.previewText} numberOfLines={1}>
               {formattedDateTimePreview()}
             </Text>
           </View>
 
-          {/* Mode Switcher Tabs */}
+          {/* 3 Interactive Mode Tabs */}
           <View style={styles.tabBar}>
             <TouchableOpacity
-              style={[styles.tabButton, activeTab === 'date' && styles.tabButtonActive]}
-              onPress={() => setActiveTab('date')}
+              style={[styles.tabButton, activeTab === 'type' && styles.tabButtonActive]}
+              onPress={() => setActiveTab('type')}
+              activeOpacity={0.8}
+            >
+              <CustomIcon
+                name="edit"
+                size={13}
+                color={activeTab === 'type' ? Colors.white : Colors.textMuted}
+              />
+              <Text style={[styles.tabText, activeTab === 'type' && styles.tabTextActive]}>
+                Type Exact
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabButton, activeTab === 'calendar' && styles.tabButtonActive]}
+              onPress={() => setActiveTab('calendar')}
               activeOpacity={0.8}
             >
               <CustomIcon
                 name="calendar"
-                size={14}
-                color={activeTab === 'date' ? Colors.white : Colors.textMuted}
+                size={13}
+                color={activeTab === 'calendar' ? Colors.white : Colors.textMuted}
               />
-              <Text
-                style={[styles.tabText, activeTab === 'date' && styles.tabTextActive]}
-              >
-                1. Select Date
+              <Text style={[styles.tabText, activeTab === 'calendar' && styles.tabTextActive]}>
+                Calendar
               </Text>
             </TouchableOpacity>
 
@@ -261,47 +443,258 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
             >
               <CustomIcon
                 name="clock"
-                size={14}
+                size={13}
                 color={activeTab === 'time' ? Colors.white : Colors.textMuted}
               />
-              <Text
-                style={[styles.tabText, activeTab === 'time' && styles.tabTextActive]}
-              >
-                2. Set Time ({hour12}:{minute.toString().padStart(2, '0')} {isPM ? 'PM' : 'AM'})
+              <Text style={[styles.tabText, activeTab === 'time' && styles.tabTextActive]}>
+                Stepper
               </Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
-            {activeTab === 'date' ? (
+            {/* TAB 1: TYPE EXACT (Typable Date & Time with Real-time Validation) */}
+            {activeTab === 'type' && (
+              <View style={styles.typeTabContent}>
+                {/* Status Eligibility Badge */}
+                <View
+                  style={[
+                    styles.validationPill,
+                    typeValidation.isValid
+                      ? styles.validationValid
+                      : styles.validationInvalid,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.validationText,
+                      { color: typeValidation.isValid ? Colors.success : Colors.danger },
+                    ]}
+                  >
+                    {typeValidation.message}
+                  </Text>
+                </View>
+
+                {/* Date Typable Fields */}
+                <Text style={styles.inputGroupTitle}>Enter Eligible Date (YYYY / MM / DD):</Text>
+                <View style={styles.typeRow}>
+                  {/* Year */}
+                  <View style={[styles.inputFieldCol, { flex: 1.4 }]}>
+                    <Text style={styles.inputFieldLabel}>Year</Text>
+                    <TextInput
+                      style={styles.typableInput}
+                      keyboardType="numeric"
+                      maxLength={4}
+                      placeholder="2026"
+                      placeholderTextColor={Colors.textMuted}
+                      value={typeYear}
+                      onChangeText={(val) => {
+                        setTypeYear(val);
+                        validateAndSetTyped(val, typeMonth, typeDay, typeHour, typeMinute, typeIsPM);
+                      }}
+                    />
+                  </View>
+
+                  {/* Month */}
+                  <View style={[styles.inputFieldCol, { flex: 1 }]}>
+                    <Text style={styles.inputFieldLabel}>Month</Text>
+                    <TextInput
+                      style={styles.typableInput}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      placeholder="MM"
+                      placeholderTextColor={Colors.textMuted}
+                      value={typeMonth}
+                      onChangeText={(val) => {
+                        setTypeMonth(val);
+                        validateAndSetTyped(typeYear, val, typeDay, typeHour, typeMinute, typeIsPM);
+                      }}
+                    />
+                  </View>
+
+                  {/* Day */}
+                  <View style={[styles.inputFieldCol, { flex: 1 }]}>
+                    <Text style={styles.inputFieldLabel}>Day</Text>
+                    <TextInput
+                      style={styles.typableInput}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      placeholder="DD"
+                      placeholderTextColor={Colors.textMuted}
+                      value={typeDay}
+                      onChangeText={(val) => {
+                        setTypeDay(val);
+                        validateAndSetTyped(typeYear, typeMonth, val, typeHour, typeMinute, typeIsPM);
+                      }}
+                    />
+                  </View>
+                </View>
+
+                {/* Time Typable Fields */}
+                <Text style={[styles.inputGroupTitle, { marginTop: 14 }]}>
+                  Enter Eligible Time (12-Hour Clock):
+                </Text>
+                <View style={styles.typeRow}>
+                  {/* Hour */}
+                  <View style={[styles.inputFieldCol, { flex: 1 }]}>
+                    <Text style={styles.inputFieldLabel}>Hour (1-12)</Text>
+                    <TextInput
+                      style={styles.typableInput}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      placeholder="12"
+                      placeholderTextColor={Colors.textMuted}
+                      value={typeHour}
+                      onChangeText={(val) => {
+                        setTypeHour(val);
+                        validateAndSetTyped(typeYear, typeMonth, typeDay, val, typeMinute, typeIsPM);
+                      }}
+                    />
+                  </View>
+
+                  {/* Separator */}
+                  <View style={styles.colonWrap}>
+                    <Text style={styles.colonText}>:</Text>
+                  </View>
+
+                  {/* Minute */}
+                  <View style={[styles.inputFieldCol, { flex: 1 }]}>
+                    <Text style={styles.inputFieldLabel}>Minute (00-59)</Text>
+                    <TextInput
+                      style={styles.typableInput}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      placeholder="00"
+                      placeholderTextColor={Colors.textMuted}
+                      value={typeMinute}
+                      onChangeText={(val) => {
+                        setTypeMinute(val);
+                        validateAndSetTyped(typeYear, typeMonth, typeDay, typeHour, val, typeIsPM);
+                      }}
+                    />
+                  </View>
+
+                  {/* AM / PM Toggle */}
+                  <View style={[styles.inputFieldCol, { flex: 1.2 }]}>
+                    <Text style={styles.inputFieldLabel}>Period</Text>
+                    <View style={styles.ampmRow}>
+                      <TouchableOpacity
+                        style={[styles.ampmBtn, !typeIsPM && styles.ampmBtnActive]}
+                        onPress={() => {
+                          setTypeIsPM(false);
+                          validateAndSetTyped(typeYear, typeMonth, typeDay, typeHour, typeMinute, false);
+                        }}
+                      >
+                        <Text style={[styles.ampmBtnText, !typeIsPM && styles.ampmBtnTextActive]}>
+                          AM
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.ampmBtn, typeIsPM && styles.ampmBtnActive]}
+                        onPress={() => {
+                          setTypeIsPM(true);
+                          validateAndSetTyped(typeYear, typeMonth, typeDay, typeHour, typeMinute, true);
+                        }}
+                      >
+                        <Text style={[styles.ampmBtnText, typeIsPM && styles.ampmBtnTextActive]}>
+                          PM
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Quick Helper Presets */}
+                <Text style={[styles.inputGroupTitle, { marginTop: 14 }]}>Quick Auto-Fill:</Text>
+                <View style={styles.quickChipsWrap}>
+                  <TouchableOpacity
+                    style={styles.quickFillChip}
+                    onPress={() => {
+                      const now = new Date();
+                      const y = now.getFullYear().toString();
+                      const m = (now.getMonth() + 1).toString().padStart(2, '0');
+                      const d = now.getDate().toString().padStart(2, '0');
+                      const hRaw = now.getHours();
+                      const h = (hRaw === 0 ? 12 : hRaw > 12 ? hRaw - 12 : hRaw).toString();
+                      const min = now.getMinutes().toString().padStart(2, '0');
+                      const pm = hRaw >= 12;
+
+                      setTypeYear(y);
+                      setTypeMonth(m);
+                      setTypeDay(d);
+                      setTypeHour(h);
+                      setTypeMinute(min);
+                      setTypeIsPM(pm);
+                      validateAndSetTyped(y, m, d, h, min, pm);
+                    }}
+                  >
+                    <Text style={styles.quickFillText}>Right Now</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.quickFillChip}
+                    onPress={() => {
+                      const now = new Date();
+                      const y = now.getFullYear().toString();
+                      const m = (now.getMonth() + 1).toString().padStart(2, '0');
+                      const d = now.getDate().toString().padStart(2, '0');
+                      setTypeYear(y);
+                      setTypeMonth(m);
+                      setTypeDay(d);
+                      setTypeHour('5');
+                      setTypeMinute('00');
+                      setTypeIsPM(true);
+                      validateAndSetTyped(y, m, d, '5', '00', true);
+                    }}
+                  >
+                    <Text style={styles.quickFillText}>Today 5:00 PM</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.quickFillChip}
+                    onPress={() => {
+                      const tom = new Date();
+                      tom.setDate(tom.getDate() + 1);
+                      const y = tom.getFullYear().toString();
+                      const m = (tom.getMonth() + 1).toString().padStart(2, '0');
+                      const d = tom.getDate().toString().padStart(2, '0');
+                      setTypeYear(y);
+                      setTypeMonth(m);
+                      setTypeDay(d);
+                      setTypeHour('9');
+                      setTypeMinute('00');
+                      setTypeIsPM(false);
+                      validateAndSetTyped(y, m, d, '9', '00', false);
+                    }}
+                  >
+                    <Text style={styles.quickFillText}>Tomorrow 9:00 AM</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* TAB 2: CALENDAR VIEW */}
+            {activeTab === 'calendar' && (
               <View style={styles.dateTabContent}>
                 {/* Month Navigator */}
                 <View style={styles.monthNavigator}>
-                  <TouchableOpacity
-                    onPress={handlePrevMonth}
-                    style={styles.navArrow}
-                    activeOpacity={0.7}
-                  >
-                    <CustomIcon name="chevron-left" size={18} color={Colors.textPrimary} />
+                  <TouchableOpacity onPress={handlePrevMonth} style={styles.navArrowBtn}>
+                    <CustomIcon name="chevron-left" size={16} color={Colors.primary} />
                   </TouchableOpacity>
 
                   <Text style={styles.monthYearTitle}>
                     {MONTH_NAMES[viewMonth]} {viewYear}
                   </Text>
 
-                  <TouchableOpacity
-                    onPress={handleNextMonth}
-                    style={styles.navArrow}
-                    activeOpacity={0.7}
-                  >
-                    <CustomIcon name="chevron-right" size={18} color={Colors.textPrimary} />
+                  <TouchableOpacity onPress={handleNextMonth} style={styles.navArrowBtn}>
+                    <CustomIcon name="chevron-right" size={16} color={Colors.primary} />
                   </TouchableOpacity>
                 </View>
 
-                {/* Day Names Header */}
-                <View style={styles.daysHeader}>
-                  {DAYS_OF_WEEK.map((d, i) => (
-                    <Text key={i} style={styles.dayOfWeekText}>
+                {/* Days of Week Header */}
+                <View style={styles.weekDaysRow}>
+                  {DAYS_OF_WEEK.map((d, index) => (
+                    <Text key={index} style={styles.weekDayText}>
                       {d}
                     </Text>
                   ))}
@@ -309,34 +702,31 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
 
                 {/* Days Grid */}
                 <View style={styles.daysGrid}>
-                  {/* Empty cells before month start */}
-                  {Array.from({ length: firstDay }).map((_, idx) => (
-                    <View key={`empty-${idx}`} style={styles.dayCellEmpty} />
+                  {Array.from({ length: firstDay }).map((_, index) => (
+                    <View key={`empty-${index}`} style={styles.emptyDayCell} />
                   ))}
 
-                  {/* Month days */}
-                  {Array.from({ length: daysInMonth }).map((_, idx) => {
-                    const dayNum = idx + 1;
+                  {Array.from({ length: daysInMonth }).map((_, index) => {
+                    const day = index + 1;
                     const isSelected =
                       selectedDate.getFullYear() === viewYear &&
                       selectedDate.getMonth() === viewMonth &&
-                      selectedDate.getDate() === dayNum;
+                      selectedDate.getDate() === day;
 
-                    const today = new Date();
                     const isToday =
-                      today.getFullYear() === viewYear &&
-                      today.getMonth() === viewMonth &&
-                      today.getDate() === dayNum;
+                      new Date().getFullYear() === viewYear &&
+                      new Date().getMonth() === viewMonth &&
+                      new Date().getDate() === day;
 
                     return (
                       <TouchableOpacity
-                        key={`day-${dayNum}`}
+                        key={`day-${day}`}
                         style={[
                           styles.dayCell,
                           isSelected && styles.dayCellSelected,
                           isToday && !isSelected && styles.dayCellToday,
                         ]}
-                        onPress={() => handleDaySelect(dayNum)}
+                        onPress={() => handleDaySelect(day)}
                         activeOpacity={0.7}
                       >
                         <Text
@@ -346,53 +736,51 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
                             isToday && !isSelected && styles.dayCellTextToday,
                           ]}
                         >
-                          {dayNum}
+                          {day}
                         </Text>
-                        {isToday && !isSelected && <View style={styles.todayDot} />}
                       </TouchableOpacity>
                     );
                   })}
                 </View>
 
-                {/* Quick Date Chips */}
-                <View style={styles.quickChipsContainer}>
-                  <Text style={styles.sectionSubtitle}>Quick Presets:</Text>
-                  <View style={styles.chipsRow}>
-                    <TouchableOpacity
-                      style={styles.quickChip}
-                      onPress={() => applyDatePreset('today')}
-                    >
-                      <Text style={styles.quickChipText}>Today</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.quickChip}
-                      onPress={() => applyDatePreset('tomorrow')}
-                    >
-                      <Text style={styles.quickChipText}>Tomorrow</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.quickChip}
-                      onPress={() => applyDatePreset('in3days')}
-                    >
-                      <Text style={styles.quickChipText}>In 3 Days</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.quickChip}
-                      onPress={() => applyDatePreset('nextWeek')}
-                    >
-                      <Text style={styles.quickChipText}>Next Week</Text>
-                    </TouchableOpacity>
-                  </View>
+                {/* Date Presets */}
+                <View style={styles.chipsRow}>
+                  <TouchableOpacity
+                    style={styles.quickChip}
+                    onPress={() => applyDatePreset('today')}
+                  >
+                    <Text style={styles.quickChipText}>Today</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickChip}
+                    onPress={() => applyDatePreset('tomorrow')}
+                  >
+                    <Text style={styles.quickChipText}>Tomorrow</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickChip}
+                    onPress={() => applyDatePreset('weekend')}
+                  >
+                    <Text style={styles.quickChipText}>Weekend</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickChip}
+                    onPress={() => applyDatePreset('nextWeek')}
+                  >
+                    <Text style={styles.quickChipText}>+1 Week</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-            ) : (
+            )}
+
+            {/* TAB 3: STEPPER TIME VIEW */}
+            {activeTab === 'time' && (
               <View style={styles.timeTabContent}>
-                {/* Precision Digital Clock Display */}
-                <View style={styles.clockContainer}>
-                  {/* Hours */}
-                  <View style={styles.timeUnitBlock}>
+                <View style={styles.clockHeroCard}>
+                  {/* Hours Controls */}
+                  <View style={styles.timeCol}>
                     <TouchableOpacity
-                      style={styles.timeStepper}
+                      style={styles.stepperArrow}
                       onPress={() => adjustHour(1)}
                     >
                       <CustomIcon name="chevron-up" size={16} color={Colors.primary} />
@@ -403,20 +791,20 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
                       </Text>
                     </View>
                     <TouchableOpacity
-                      style={styles.timeStepper}
+                      style={styles.stepperArrow}
                       onPress={() => adjustHour(-1)}
                     >
                       <CustomIcon name="chevron-down" size={16} color={Colors.primary} />
                     </TouchableOpacity>
-                    <Text style={styles.unitLabel}>HOUR</Text>
+                    <Text style={styles.timeUnitLabel}>HOURS</Text>
                   </View>
 
-                  <Text style={styles.colonSeparator}>:</Text>
+                  <Text style={styles.clockColon}>:</Text>
 
-                  {/* Minutes */}
-                  <View style={styles.timeUnitBlock}>
+                  {/* Minutes Controls */}
+                  <View style={styles.timeCol}>
                     <TouchableOpacity
-                      style={styles.timeStepper}
+                      style={styles.stepperArrow}
                       onPress={() => adjustMinute(5)}
                     >
                       <CustomIcon name="chevron-up" size={16} color={Colors.primary} />
@@ -427,123 +815,68 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
                       </Text>
                     </View>
                     <TouchableOpacity
-                      style={styles.timeStepper}
+                      style={styles.stepperArrow}
                       onPress={() => adjustMinute(-5)}
                     >
                       <CustomIcon name="chevron-down" size={16} color={Colors.primary} />
                     </TouchableOpacity>
-                    <Text style={styles.unitLabel}>MINUTE</Text>
+                    <Text style={styles.timeUnitLabel}>MINUTES</Text>
                   </View>
 
-                  {/* AM / PM Toggle */}
-                  <View style={styles.ampmContainer}>
+                  {/* AM/PM Toggle */}
+                  <View style={styles.ampmSelector}>
                     <TouchableOpacity
-                      style={[styles.ampmButton, !isPM && styles.ampmButtonActive]}
+                      style={[styles.ampmCard, !isPM && styles.ampmCardActive]}
                       onPress={() => {
-                        if (isPM) toggleAMPM();
+                        setIsPM(false);
+                        updateWorkingDateTime(hour12, minute, false);
                       }}
                     >
-                      <Text
-                        style={[styles.ampmText, !isPM && styles.ampmTextActive]}
-                      >
+                      <Text style={[styles.ampmText, !isPM && styles.ampmTextActive]}>
                         AM
                       </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.ampmButton, isPM && styles.ampmButtonActive]}
+                      style={[styles.ampmCard, isPM && styles.ampmCardActive]}
                       onPress={() => {
-                        if (!isPM) toggleAMPM();
+                        setIsPM(true);
+                        updateWorkingDateTime(hour12, minute, true);
                       }}
                     >
-                      <Text
-                        style={[styles.ampmText, isPM && styles.ampmTextActive]}
-                      >
+                      <Text style={[styles.ampmText, isPM && styles.ampmTextActive]}>
                         PM
                       </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                {/* Minute Fast Tweakers */}
-                <View style={styles.minuteTweakers}>
-                  <Text style={styles.sectionSubtitle}>Quick Adjust Minutes:</Text>
-                  <View style={styles.chipsRow}>
-                    <TouchableOpacity
-                      style={styles.quickChip}
-                      onPress={() => adjustMinute(-15)}
-                    >
-                      <Text style={styles.quickChipText}>-15m</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.quickChip}
-                      onPress={() => adjustMinute(15)}
-                    >
-                      <Text style={styles.quickChipText}>+15m</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.quickChip}
-                      onPress={() => adjustMinute(30)}
-                    >
-                      <Text style={styles.quickChipText}>+30m</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.quickChip}
-                      onPress={() => {
-                        setMinute(0);
-                        updateWorkingDateTime(hour12, 0, isPM);
-                      }}
-                    >
-                      <Text style={styles.quickChipText}>:00</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.quickChip}
-                      onPress={() => {
-                        setMinute(30);
-                        updateWorkingDateTime(hour12, 30, isPM);
-                      }}
-                    >
-                      <Text style={styles.quickChipText}>:30</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Common Schedule Presets */}
-                <View style={styles.schedulePresets}>
-                  <Text style={styles.sectionSubtitle}>Standard Times:</Text>
-                  <View style={styles.presetsGrid}>
-                    <TouchableOpacity
-                      style={styles.presetCard}
-                      onPress={() => applyTimePreset(9, 0, false)}
-                    >
-                      <Text style={styles.presetTime}>09:00 AM</Text>
-                      <Text style={styles.presetLabel}>Morning Start</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.presetCard}
-                      onPress={() => applyTimePreset(1, 0, true)}
-                    >
-                      <Text style={styles.presetTime}>01:00 PM</Text>
-                      <Text style={styles.presetLabel}>Post Lunch</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.presetCard}
-                      onPress={() => applyTimePreset(6, 0, true)}
-                    >
-                      <Text style={styles.presetTime}>06:00 PM</Text>
-                      <Text style={styles.presetLabel}>Evening Wrap</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.presetCard}
-                      onPress={() => applyTimePreset(11, 59, true)}
-                    >
-                      <Text style={styles.presetTime}>11:59 PM</Text>
-                      <Text style={styles.presetLabel}>End of Day</Text>
-                    </TouchableOpacity>
-                  </View>
+                {/* Standard Preset Buttons */}
+                <View style={styles.chipsRow}>
+                  <TouchableOpacity
+                    style={styles.quickChip}
+                    onPress={() => applyTimePreset(9, 0, false)}
+                  >
+                    <Text style={styles.quickChipText}>09:00 AM</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickChip}
+                    onPress={() => applyTimePreset(1, 0, true)}
+                  >
+                    <Text style={styles.quickChipText}>01:00 PM</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickChip}
+                    onPress={() => applyTimePreset(6, 0, true)}
+                  >
+                    <Text style={styles.quickChipText}>06:00 PM</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickChip}
+                    onPress={() => applyTimePreset(11, 59, true)}
+                  >
+                    <Text style={styles.quickChipText}>11:59 PM</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -560,11 +893,14 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.confirmButton}
+              style={[
+                styles.confirmButton,
+                activeTab === 'type' && !typeValidation.isValid && styles.confirmButtonDisabled,
+              ]}
               onPress={handleConfirm}
               activeOpacity={0.8}
             >
-              <CustomIcon name="check" size={16} color={Colors.white} />
+              <CustomIcon name="check" size={15} color={Colors.white} />
               <Text style={styles.confirmButtonText}>Set Exact Date & Time</Text>
             </TouchableOpacity>
           </View>
@@ -577,22 +913,22 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(43, 37, 33, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
   },
   modalCard: {
     backgroundColor: Colors.bgCard,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
     width: '100%',
     maxWidth: 420,
-    maxHeight: '90%',
-    shadowColor: Colors.primary,
+    maxHeight: '92%',
+    shadowColor: 'rgba(197, 145, 88, 0.25)',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 20,
     overflow: 'hidden',
@@ -616,36 +952,35 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.primaryGlow,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.textPrimary,
   },
   closeButton: {
     padding: 6,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: Colors.bgSecondary,
   },
   previewBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    backgroundColor: '#F5ECE0',
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginHorizontal: 16,
     marginTop: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.25)',
+    borderColor: Colors.border,
   },
   previewText: {
     fontSize: 13,
-    color: Colors.primaryLight,
+    color: Colors.primaryDark,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
@@ -660,296 +995,340 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
+    gap: 5,
+    paddingVertical: 9,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: '#F5ECE0',
     borderWidth: 1,
     borderColor: Colors.border,
   },
   tabButtonActive: {
     backgroundColor: Colors.primary,
-    borderColor: Colors.primaryLight,
+    borderColor: Colors.primary,
   },
   tabText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textMuted,
+    fontWeight: '700',
+    color: Colors.textSecondary,
   },
   tabTextActive: {
     color: Colors.white,
-    fontWeight: '700',
   },
   contentScroll: {
     maxHeight: 380,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  },
+  typeTabContent: {
+    padding: 16,
+  },
+  validationPill: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 14,
+  },
+  validationValid: {
+    backgroundColor: 'rgba(91, 138, 97, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(91, 138, 97, 0.35)',
+  },
+  validationInvalid: {
+    backgroundColor: 'rgba(200, 90, 72, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(200, 90, 72, 0.35)',
+  },
+  validationText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  inputGroupTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inputFieldCol: {
+    marginBottom: 4,
+  },
+  inputFieldLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  typableInput: {
+    backgroundColor: '#F5ECE0',
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  colonWrap: {
+    justifyContent: 'center',
+    paddingTop: 14,
+  },
+  colonText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  ampmRow: {
+    flexDirection: 'row',
+    height: 40,
+    backgroundColor: '#F5ECE0',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  ampmBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ampmBtnActive: {
+    backgroundColor: Colors.primary,
+  },
+  ampmBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+  },
+  ampmBtnTextActive: {
+    color: Colors.white,
+  },
+  quickChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  quickFillChip: {
+    backgroundColor: '#F5ECE0',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  quickFillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primaryDark,
   },
   dateTabContent: {
-    paddingBottom: 8,
+    padding: 16,
   },
   monthNavigator: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
   },
-  navArrow: {
+  navArrowBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#F5ECE0',
+    borderWidth: 1,
+    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   monthYearTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: Colors.textPrimary,
   },
-  daysHeader: {
+  weekDaysRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 8,
   },
-  dayOfWeekText: {
-    width: 38,
+  weekDayText: {
+    width: 36,
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: Colors.textMuted,
   },
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'flex-start',
   },
-  dayCellEmpty: {
-    width: '14.28%',
-    height: 40,
+  emptyDayCell: {
+    width: `${100 / 7}%`,
+    height: 36,
   },
   dayCell: {
-    width: '14.28%',
-    height: 40,
+    width: `${100 / 7}%`,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
-    borderRadius: 20,
+    borderRadius: 18,
     marginVertical: 2,
   },
   dayCellSelected: {
     backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 5,
-    elevation: 4,
   },
   dayCellToday: {
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.5)',
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
   },
   dayCellText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textPrimary,
   },
   dayCellTextSelected: {
     color: Colors.white,
     fontWeight: '800',
   },
   dayCellTextToday: {
-    color: Colors.primaryLight,
-    fontWeight: '700',
-  },
-  todayDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.primary,
-    position: 'absolute',
-    bottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  quickChipsContainer: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
-    paddingTop: 12,
+    color: Colors.primary,
+    fontWeight: '800',
   },
   chipsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
+    gap: 6,
+    marginTop: 14,
   },
   quickChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    flex: 1,
+    backgroundColor: '#F5ECE0',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: Colors.border,
+    paddingVertical: 7,
+    borderRadius: 10,
+    alignItems: 'center',
   },
   quickChipText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.primaryDark,
   },
   timeTabContent: {
-    paddingVertical: 8,
+    padding: 16,
   },
-  clockContainer: {
+  clockHeroCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 18,
+    gap: 12,
+    backgroundColor: '#F5ECE0',
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: Colors.border,
   },
-  timeUnitBlock: {
+  timeCol: {
     alignItems: 'center',
   },
-  timeStepper: {
+  stepperArrow: {
     padding: 6,
-    borderRadius: 8,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    marginVertical: 4,
   },
   digitBox: {
-    backgroundColor: Colors.bgSecondary,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
-    minWidth: 70,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: 64,
     alignItems: 'center',
   },
   digitText: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '800',
     color: Colors.textPrimary,
-    fontVariant: ['tabular-nums'],
   },
-  unitLabel: {
-    fontSize: 10,
-    fontWeight: '700',
+  timeUnitLabel: {
+    fontSize: 9,
+    fontWeight: '800',
     color: Colors.textMuted,
     marginTop: 4,
     letterSpacing: 0.5,
   },
-  colonSeparator: {
-    fontSize: 32,
+  clockColon: {
+    fontSize: 26,
     fontWeight: '800',
     color: Colors.primary,
-    marginHorizontal: 10,
     marginBottom: 16,
   },
-  ampmContainer: {
-    marginLeft: 16,
-    gap: 6,
+  ampmSelector: {
+    gap: 8,
+    marginLeft: 6,
   },
-  ampmButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  ampmCard: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: Colors.bgCard,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  ampmButtonActive: {
+  ampmCardActive: {
     backgroundColor: Colors.primary,
-    borderColor: Colors.primaryLight,
+    borderColor: Colors.primary,
   },
   ampmText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.textMuted,
+    fontSize: 12,
+    fontWeight: '800',
+    color: Colors.textSecondary,
   },
   ampmTextActive: {
     color: Colors.white,
   },
-  minuteTweakers: {
-    marginTop: 16,
-  },
-  schedulePresets: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
-    paddingTop: 12,
-  },
-  presetsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  presetCard: {
-    width: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  presetTime: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.primaryLight,
-  },
-  presetLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
   footerActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    gap: 10,
+    padding: 16,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   cancelButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    flex: 1,
+    paddingVertical: 13,
     borderRadius: 14,
+    backgroundColor: '#F5ECE0',
     borderWidth: 1,
     borderColor: Colors.border,
+    alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 14,
+    fontWeight: '700',
     color: Colors.textSecondary,
-    fontWeight: '600',
   },
   confirmButton: {
-    flex: 1,
+    flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: Colors.primary,
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderRadius: 14,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: Colors.primary,
+  },
+  confirmButtonDisabled: {
+    opacity: 0.5,
   },
   confirmButtonText: {
     fontSize: 14,
-    color: Colors.white,
     fontWeight: '700',
+    color: Colors.white,
   },
 });

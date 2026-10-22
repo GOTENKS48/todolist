@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { Colors } from '../theme/colors';
 import { useAppDispatch, useAppSelector } from '../redux/store';
@@ -81,6 +82,7 @@ export const AuthScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
+      <StatusBar barStyle="dark-content" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
