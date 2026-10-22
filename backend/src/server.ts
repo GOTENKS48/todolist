@@ -2,6 +2,8 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import path from 'path';
+import fs from 'fs';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
@@ -61,6 +63,16 @@ app.get('/api/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     dbReadyState: mongoose.connection.readyState,
   });
+});
+
+// Direct APK Download Endpoint
+app.get(['/download', '/download/apk'], (req: Request, res: Response) => {
+  const apkPath = path.resolve('..', 'mobile', 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+  if (fs.existsSync(apkPath)) {
+    res.download(apkPath, 'TaskOrbit.apk');
+  } else {
+    res.status(404).send('APK build not found.');
+  }
 });
 
 // API Routes
