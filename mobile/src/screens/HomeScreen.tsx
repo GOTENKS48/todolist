@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Colors } from '../theme/colors';
 import { useAppDispatch, useAppSelector } from '../redux/store';
-import { logoutUser } from '../redux/slices/authSlice';
+import { logoutUser, updateUserProfile } from '../redux/slices/authSlice';
 import {
   fetchTasks,
   fetchStats,
@@ -23,7 +23,7 @@ import {
   setSortBy,
   setSearchQuery,
 } from '../redux/slices/taskSlice';
-import { Task, TaskCategory, FilterStatus, SortOption } from '../types';
+import { Task, DeadlineNotification } from '../types';
 import { Header } from '../components/Header';
 import { StatsOverview } from '../components/StatsOverview';
 import { SearchBar } from '../components/SearchBar';
@@ -31,8 +31,12 @@ import { CategoryFilters } from '../components/CategoryFilters';
 import { SortBar } from '../components/SortBar';
 import { TaskCard } from '../components/TaskCard';
 import { TaskModal } from '../components/TaskModal';
+import { ProfileModal } from '../components/ProfileModal';
+import { NotificationBanner } from '../components/NotificationBanner';
+import { NotificationCenterModal } from '../components/NotificationCenterModal';
 import { EmptyState } from '../components/EmptyState';
 import { CustomIcon } from '../components/CustomIcon';
+import { notificationService } from '../services/notificationService';
 
 export const HomeScreen: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -48,9 +52,17 @@ export const HomeScreen: React.FC = () => {
     isRefreshing,
   } = useAppSelector((state) => state.tasks);
 
+  // Modals state
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
+  const [isProfileUpdating, setIsProfileUpdating] = useState(false);
+
+  // Notifications state
+  const [activeNotifications, setActiveNotifications] = useState<DeadlineNotification[]>([]);
+  const [bannerNotification, setBannerNotification] = useState<DeadlineNotification | null>(null);
+  const [isNotificationCenterVisible, setIsNotificationCenterVisible] = useState(false);
 
   // Load tasks & stats on mount
   const loadData = useCallback(
@@ -75,6 +87,33 @@ export const HomeScreen: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Subscribe to real-time deadline push alerts
+  useEffect(() => {
+    const unsubscribe = notificationService.subscribe((notif) => {
+      setBannerNotification(notif);
+      setActiveNotifications(notificationService.getActiveNotifications());
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Monitor deadlines whenever tasks change or every 60 seconds
+  useEffect(() => {
+    if (!user || tasks.length === 0) return;
+
+    // Immediate check
+    notificationService.checkDeadlines(tasks);
+    setActiveNotifications(notificationService.getActiveNotifications());
+
+    // Recurring check every 60 seconds
+    const interval = setInterval(() => {
+      notificationService.checkDeadlines(tasks);
+      setActiveNotifications(notificationService.getActiveNotifications());
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [tasks, user]);
 
   // Client-side filtering & search for instantaneous reactivity
   const filteredTasks = useMemo(() => {
@@ -130,6 +169,14 @@ export const HomeScreen: React.FC = () => {
     setIsModalVisible(true);
   };
 
+  const handleSelectTaskFromNotif = (taskId: string) => {
+    const target = tasks.find((t) => t._id === taskId);
+    if (target) {
+      setEditingTask(target);
+      setIsModalVisible(true);
+    }
+  };
+
   const handleModalSubmit = async (taskData: {
     title: string;
     description: string;
@@ -150,8 +197,22 @@ export const HomeScreen: React.FC = () => {
       } else {
         await dispatch(createTask(taskData)).unwrap();
       }
+      setIsModalVisible(false);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveProfile = async (profileData: {
+    name: string;
+    avatar?: string;
+    bio?: string;
+  }) => {
+    setIsProfileUpdating(true);
+    try {
+      await dispatch(updateUserProfile(profileData)).unwrap();
+    } finally {
+      setIsProfileUpdating(false);
     }
   };
 
@@ -165,12 +226,25 @@ export const HomeScreen: React.FC = () => {
     dispatch(setSearchQuery(''));
   };
 
+  const handleClearNotifications = () => {
+    notificationService.clearAll();
+    setActiveNotifications([]);
+    setBannerNotification(null);
+  };
+
   const hasActiveFilters =
     filterStatus !== 'ALL' || selectedCategory !== 'ALL' || !!searchQuery.trim();
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
+
+      {/* Real-time Deadline Floating Push Banner */}
+      <NotificationBanner
+        notification={bannerNotification}
+        onDismiss={() => setBannerNotification(null)}
+        onPressTask={handleSelectTaskFromNotif}
+      />
 
       <FlatList
         data={filteredTasks}
@@ -194,8 +268,15 @@ export const HomeScreen: React.FC = () => {
         }
         ListHeaderComponent={
           <View>
-            {/* Header with user greeting & logout */}
-            <Header user={user} stats={stats} onLogout={handleLogout} />
+            {/* Header with user greeting, profile trigger, alerts, & logout */}
+            <Header
+              user={user}
+              stats={stats}
+              notificationCount={activeNotifications.length}
+              onLogout={handleLogout}
+              onPressProfile={() => setIsProfileModalVisible(true)}
+              onOpenNotifications={() => setIsNotificationCenterVisible(true)}
+            />
 
             {/* Performance Stats Overview */}
             <StatsOverview stats={stats} />
@@ -242,13 +323,31 @@ export const HomeScreen: React.FC = () => {
         <CustomIcon name="plus" size={24} color={Colors.white} />
       </TouchableOpacity>
 
-      {/* Create / Edit Task Modal */}
+      {/* Create / Edit Task Modal with Precision Picker */}
       <TaskModal
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onSubmit={handleModalSubmit}
         initialTask={editingTask}
         isLoading={isSubmitting}
+      />
+
+      {/* Edit Profile Modal */}
+      <ProfileModal
+        visible={isProfileModalVisible}
+        user={user}
+        onClose={() => setIsProfileModalVisible(false)}
+        onSave={handleSaveProfile}
+        isLoading={isProfileUpdating}
+      />
+
+      {/* Notification Center Modal */}
+      <NotificationCenterModal
+        visible={isNotificationCenterVisible}
+        notifications={activeNotifications}
+        onClose={() => setIsNotificationCenterVisible(false)}
+        onClearAll={handleClearNotifications}
+        onSelectTask={handleSelectTaskFromNotif}
       />
     </SafeAreaView>
   );

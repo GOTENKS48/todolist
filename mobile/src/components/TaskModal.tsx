@@ -15,6 +15,7 @@ import { Colors, CategoryColors } from '../theme/colors';
 import { Task, PriorityLevel, TaskCategory } from '../types';
 import { CustomIcon } from './CustomIcon';
 import { formatDateTime } from '../utils/date';
+import { PrecisionDateTimePicker } from './PrecisionDateTimePicker';
 
 interface Props {
   visible: boolean;
@@ -55,6 +56,22 @@ export const TaskModal: React.FC<Props> = ({
   const [category, setCategory] = useState<TaskCategory>('WORK');
   const [deadline, setDeadline] = useState<Date>(new Date(Date.now() + 24 * 60 * 60 * 1000));
   const [dateTime, setDateTime] = useState<Date>(new Date());
+  const [isDateTimePickerOpen, setIsDateTimePickerOpen] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'dateTime' | 'deadline'>('deadline');
+
+  const openDateTimePicker = (mode: 'dateTime' | 'deadline') => {
+    setPickerMode(mode);
+    setIsDateTimePickerOpen(true);
+  };
+
+  const handleConfirmDateTime = (chosenDate: Date) => {
+    if (pickerMode === 'dateTime') {
+      setDateTime(chosenDate);
+    } else {
+      setDeadline(chosenDate);
+    }
+    setIsDateTimePickerOpen(false);
+  };
 
   useEffect(() => {
     if (initialTask) {
@@ -262,15 +279,25 @@ export const TaskModal: React.FC<Props> = ({
 
             {/* Scheduled Date-Time Selection */}
             <View style={styles.fieldGroup}>
-              <View style={styles.deadlineHeader}>
-                <View style={styles.labelWithIcon}>
-                  <CustomIcon name="calendar" size={14} color={Colors.primaryLight} />
-                  <Text style={[styles.fieldLabel, { marginBottom: 0, marginLeft: 6 }]}>
-                    Date & Time (Scheduled) *
-                  </Text>
+              <TouchableOpacity
+                style={styles.precisionPickerTrigger}
+                onPress={() => openDateTimePicker('dateTime')}
+                activeOpacity={0.8}
+              >
+                <View style={styles.triggerLeft}>
+                  <View style={styles.triggerIconWrap}>
+                    <CustomIcon name="calendar" size={18} color={Colors.primary} />
+                  </View>
+                  <View style={styles.triggerTextCol}>
+                    <Text style={styles.triggerSub}>Scheduled Date & Time *</Text>
+                    <Text style={styles.triggerValue}>{formatDateTime(dateTime)}</Text>
+                  </View>
                 </View>
-                <Text style={styles.currentDeadline}>{formatDateTime(dateTime)}</Text>
-              </View>
+                <View style={styles.triggerBadge}>
+                  <Text style={styles.triggerBadgeText}>Set Exact</Text>
+                  <CustomIcon name="chevron-right" size={12} color={Colors.primaryLight} />
+                </View>
+              </TouchableOpacity>
 
               <Text style={styles.presetLabel}>Quick Presets:</Text>
               <View style={styles.presetRow}>
@@ -327,17 +354,27 @@ export const TaskModal: React.FC<Props> = ({
 
             {/* Deadline Selection */}
             <View style={styles.fieldGroup}>
-              <View style={styles.deadlineHeader}>
-                <View style={styles.labelWithIcon}>
-                  <CustomIcon name="clock" size={14} color={Colors.warning} />
-                  <Text style={[styles.fieldLabel, { marginBottom: 0, marginLeft: 6 }]}>
-                    Deadline *
-                  </Text>
+              <TouchableOpacity
+                style={[styles.precisionPickerTrigger, styles.deadlineTrigger]}
+                onPress={() => openDateTimePicker('deadline')}
+                activeOpacity={0.8}
+              >
+                <View style={styles.triggerLeft}>
+                  <View style={[styles.triggerIconWrap, styles.deadlineIconWrap]}>
+                    <CustomIcon name="clock" size={18} color={Colors.warning} />
+                  </View>
+                  <View style={styles.triggerTextCol}>
+                    <Text style={[styles.triggerSub, { color: Colors.warning }]}>Target Deadline *</Text>
+                    <Text style={[styles.triggerValue, { color: Colors.warning }]}>
+                      {formatDateTime(deadline)}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={[styles.currentDeadline, { color: Colors.warning }]}>
-                  {formatDateTime(deadline)}
-                </Text>
-              </View>
+                <View style={[styles.triggerBadge, styles.deadlineBadge]}>
+                  <Text style={[styles.triggerBadgeText, { color: Colors.warning }]}>Set Exact</Text>
+                  <CustomIcon name="chevron-right" size={12} color={Colors.warning} />
+                </View>
+              </TouchableOpacity>
 
               <Text style={styles.presetLabel}>Quick Presets:</Text>
               <View style={styles.presetRow}>
@@ -420,6 +457,15 @@ export const TaskModal: React.FC<Props> = ({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+
+      <PrecisionDateTimePicker
+        visible={isDateTimePickerOpen}
+        title={pickerMode === 'dateTime' ? 'Set Scheduled Date & Time' : 'Set Exact Deadline'}
+        initialDate={pickerMode === 'dateTime' ? dateTime : deadline}
+        accentColor={pickerMode === 'dateTime' ? Colors.primary : Colors.warning}
+        onConfirm={handleConfirmDateTime}
+        onClose={() => setIsDateTimePickerOpen(false)}
+      />
     </Modal>
   );
 };
@@ -630,5 +676,70 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 15,
     fontWeight: '700',
+  },
+  precisionPickerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  deadlineTrigger: {
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+  },
+  triggerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  triggerIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deadlineIconWrap: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+  },
+  triggerTextCol: {
+    flex: 1,
+  },
+  triggerSub: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  triggerValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginTop: 2,
+  },
+  triggerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  deadlineBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+  },
+  triggerBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primaryLight,
   },
 });

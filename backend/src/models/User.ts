@@ -8,6 +8,8 @@ export interface IUser extends Document {
   email: string;
   password: string;
   name: string;
+  avatar?: string;
+  bio?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -38,6 +40,17 @@ const UserSchema = new Schema<IUser>(
       trim: true,
       maxlength: [50, 'Name cannot be more than 50 characters'],
       default: 'Task Champion',
+    },
+    avatar: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    bio: {
+      type: String,
+      default: 'Getting things done every day 🚀',
+      maxlength: [200, 'Bio cannot exceed 200 characters'],
+      trim: true,
     },
   },
   {

@@ -22,7 +22,20 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  avatar?: string;
+  bio?: string;
   createdAt: string;
+}
+
+export interface DeadlineNotification {
+  id: string;
+  taskId: string;
+  title: string;
+  deadline: string;
+  urgency: 'OVERDUE' | 'CRITICAL' | 'UPCOMING';
+  minutesRemaining: number;
+  message: string;
+  timestamp: number;
 }
 
 export interface Task {

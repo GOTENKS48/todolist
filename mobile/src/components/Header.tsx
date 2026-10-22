@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
 import { Colors } from '../theme/colors';
 import { User, TaskStats } from '../types';
 import { CustomIcon } from './CustomIcon';
@@ -7,10 +7,20 @@ import { CustomIcon } from './CustomIcon';
 interface HeaderProps {
   user: User | null;
   stats: TaskStats;
+  notificationCount?: number;
   onLogout: () => void;
+  onPressProfile?: () => void;
+  onOpenNotifications?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ user, stats, onLogout }) => {
+export const Header: React.FC<HeaderProps> = ({
+  user,
+  stats,
+  notificationCount = 0,
+  onLogout,
+  onPressProfile,
+  onOpenNotifications,
+}) => {
   const getInitials = (name?: string) => {
     if (!name) return 'U';
     const parts = name.trim().split(' ');
@@ -34,29 +44,67 @@ export const Header: React.FC<HeaderProps> = ({ user, stats, onLogout }) => {
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <View style={styles.userInfo}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
+        {/* Interactive User Identity / Profile trigger */}
+        <TouchableOpacity
+          style={styles.userInfo}
+          activeOpacity={0.7}
+          onPress={onPressProfile}
+        >
+          <View style={styles.avatarWrap}>
+            {user?.avatar ? (
+              <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
+              </View>
+            )}
+            <View style={styles.editIndicator}>
+              <CustomIcon name="edit" size={8} color={Colors.white} />
+            </View>
             <View style={styles.onlineDot} />
           </View>
-          <View style={styles.welcomeContainer}>
-            <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.userName} numberOfLines={1}>
-              {user?.name || 'Task Master'}
-            </Text>
-          </View>
-        </View>
 
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.greeting} numberOfLines={1}>
+              {user?.bio ? user.bio : 'Welcome back,'}
+            </Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.userName} numberOfLines={1}>
+                {user?.name || 'Task Master'}
+              </Text>
+              <CustomIcon name="chevron-right" size={11} color={Colors.textMuted} />
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Right Actions: Notifications, Stats, Logout */}
         <View style={styles.actions}>
+          {/* Notification Bell */}
+          <TouchableOpacity
+            style={styles.actionIconBtn}
+            onPress={onOpenNotifications}
+            activeOpacity={0.7}
+            accessibilityLabel="Notifications"
+          >
+            <CustomIcon name="bell" size={16} color={notificationCount > 0 ? Colors.warning : Colors.textSecondary} />
+            {notificationCount > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>
+                  {notificationCount > 9 ? '9+' : notificationCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
           {stats.total > 0 && (
             <View style={styles.completionBadge}>
-              <CustomIcon name="sparkles" size={14} color={Colors.success} />
-              <Text style={styles.completionText}>{stats.completionRate}% Done</Text>
+              <CustomIcon name="sparkles" size={13} color={Colors.success} />
+              <Text style={styles.completionText}>{stats.completionRate}%</Text>
             </View>
           )}
 
           <TouchableOpacity
-            style={styles.logoutButton}
+            style={styles.actionIconBtn}
             onPress={handleLogoutPress}
             activeOpacity={0.7}
             accessibilityLabel="Log out"
@@ -71,7 +119,7 @@ export const Header: React.FC<HeaderProps> = ({ user, stats, onLogout }) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 16,
     paddingBottom: 12,
   },
@@ -84,17 +132,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 10,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  avatarWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    position: 'relative',
+  },
+  avatarImage: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+  },
+  avatarFallback: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: Colors.primaryDark,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: Colors.primary,
-    position: 'relative',
   },
   avatarText: {
     color: Colors.white,
@@ -102,61 +163,100 @@ const styles = StyleSheet.create({
     fontSize: 16,
     letterSpacing: 0.5,
   },
+  editIndicator: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    backgroundColor: Colors.primary,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.bgPrimary,
+  },
   onlineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
     backgroundColor: Colors.success,
     position: 'absolute',
-    bottom: -1,
-    right: -1,
+    bottom: 0,
+    right: 0,
     borderWidth: 2,
     borderColor: Colors.bgPrimary,
   },
   welcomeContainer: {
-    marginLeft: 12,
+    marginLeft: 10,
     flex: 1,
   },
   greeting: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: '500',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
   userName: {
-    fontSize: 18,
+    fontSize: 17,
     color: Colors.textPrimary,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+    maxWidth: 140,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
+  actionIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: Colors.danger,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.bgPrimary,
+  },
+  notifBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.white,
+  },
   completionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: Colors.successGlow,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.3)',
   },
   completionText: {
     color: Colors.success,
     fontSize: 12,
-    fontWeight: '700',
-  },
-  logoutButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.bgCard,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontWeight: '800',
   },
 });

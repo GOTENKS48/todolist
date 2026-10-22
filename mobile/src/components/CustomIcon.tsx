@@ -11,6 +11,13 @@ export type IconName =
   | 'plus'
   | 'search'
   | 'close'
+  | 'x'
+  | 'chevron-left'
+  | 'chevron-right'
+  | 'chevron-up'
+  | 'chevron-down'
+  | 'bell'
+  | 'camera'
   | 'user'
   | 'lock'
   | 'mail'
@@ -52,7 +59,20 @@ export const CustomIcon: React.FC<Props> = ({ name, size = 18, color = '#FFFFFF'
       case 'search':
         return '🔍';
       case 'close':
+      case 'x':
         return '✕';
+      case 'chevron-left':
+        return '‹';
+      case 'chevron-right':
+        return '›';
+      case 'chevron-up':
+        return '▲';
+      case 'chevron-down':
+        return '▼';
+      case 'bell':
+        return '🔔';
+      case 'camera':
+        return '📷';
       case 'user':
         return '👤';
       case 'lock':

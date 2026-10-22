@@ -66,6 +66,8 @@ export async function authenticateToken(
         id: memUser.id,
         email: memUser.email,
         name: memUser.name,
+        avatar: memUser.avatar,
+        bio: memUser.bio,
         createdAt: memUser.createdAt,
       };
     }

@@ -230,3 +230,81 @@ export async function getProfile(req: AuthenticatedRequest, res: Response): Prom
     });
   }
 }
+
+/**
+ * @route   PUT /api/auth/profile
+ * @desc    Update authenticated user profile (name, avatar, bio)
+ * @access  Private
+ */
+export async function updateProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { name, avatar, bio } = req.body;
+    const userId = req.userId;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    if (isConnectedToMongo) {
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name.trim();
+      if (avatar !== undefined) updateData.avatar = avatar.trim();
+      if (bio !== undefined) updateData.bio = bio.trim();
+
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      ).select('-password');
+
+      if (!updatedUser) {
+        res.status(404).json({ success: false, message: 'User not found' });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully!',
+        data: {
+          user: {
+            id: updatedUser._id,
+            email: updatedUser.email,
+            name: updatedUser.name,
+            avatar: updatedUser.avatar,
+            bio: updatedUser.bio,
+            createdAt: updatedUser.createdAt,
+          },
+        },
+      });
+    } else {
+      // In-Memory
+      const updatedUser = await inMemoryDB.updateUser(userId, { name, avatar, bio });
+      if (!updatedUser) {
+        res.status(404).json({ success: false, message: 'User not found' });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully!',
+        data: {
+          user: {
+            id: updatedUser.id,
+            email: updatedUser.email,
+            name: updatedUser.name,
+            avatar: updatedUser.avatar,
+            bio: updatedUser.bio,
+            createdAt: updatedUser.createdAt,
+          },
+        },
+      });
+    }
+  } catch (error: any) {
+    console.error('Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error updating profile.',
+    });
+  }
+}

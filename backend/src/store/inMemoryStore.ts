@@ -6,6 +6,8 @@ export interface InMemoryUser {
   email: string;
   passwordHash: string;
   name: string;
+  avatar?: string;
+  bio?: string;
   createdAt: Date;
 }
 
@@ -42,6 +44,8 @@ class InMemoryDatabase {
       email: 'test@example.com',
       passwordHash: hash,
       name: 'Alex Mercer',
+      avatar: 'avatar-1',
+      bio: 'Productivity enthusiast & full-stack developer 🚀',
       createdAt: new Date(),
     };
     this.users.push(demoUser);
@@ -139,7 +143,7 @@ class InMemoryDatabase {
     return this.users.find((u) => u.id === id);
   }
 
-  async createUser(user: { email: string; password: string; name: string }): Promise<InMemoryUser> {
+  async createUser(user: { email: string; password: string; name: string; avatar?: string; bio?: string }): Promise<InMemoryUser> {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(user.password, salt);
 
@@ -148,10 +152,26 @@ class InMemoryDatabase {
       email: user.email.toLowerCase(),
       passwordHash,
       name: user.name,
+      avatar: user.avatar || 'avatar-1',
+      bio: user.bio || 'Getting things done every day 🚀',
       createdAt: new Date(),
     };
     this.users.push(newUser);
     return newUser;
+  }
+
+  async updateUser(
+    id: string,
+    updates: { name?: string; avatar?: string; bio?: string }
+  ): Promise<InMemoryUser | undefined> {
+    const user = this.users.find((u) => u.id === id);
+    if (!user) return undefined;
+
+    if (updates.name !== undefined) user.name = updates.name.trim();
+    if (updates.avatar !== undefined) user.avatar = updates.avatar.trim();
+    if (updates.bio !== undefined) user.bio = updates.bio.trim();
+
+    return user;
   }
 
   // Task methods

@@ -112,6 +112,31 @@ export const logoutUser = createAsyncThunk('auth/logoutUser', async () => {
   await StorageService.clearSession();
 });
 
+/**
+ * Update user profile (name, avatar, bio)
+ */
+export const updateUserProfile = createAsyncThunk(
+  'auth/updateUserProfile',
+  async (
+    payload: { name: string; avatar?: string; bio?: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await api.put('/auth/profile', payload);
+      const updatedUser = response.data.data.user;
+
+      // Update persisted session
+      await StorageService.saveUser(updatedUser);
+
+      return updatedUser;
+    } catch (err: any) {
+      const message =
+        err.response?.data?.message || err.message || 'Failed to update profile.';
+      return rejectWithValue(message);
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -182,6 +207,21 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.error = null;
+    });
+
+    // Update Profile
+    builder.addCase(updateUserProfile.pending, (state) => {
+      state.isLoading = true;
+      state.error = null;
+    });
+    builder.addCase(updateUserProfile.fulfilled, (state, action) => {
+      state.isLoading = false;
+      state.user = action.payload;
+      state.error = null;
+    });
+    builder.addCase(updateUserProfile.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = (action.payload as string) || 'Failed to update profile';
     });
   },
 });
