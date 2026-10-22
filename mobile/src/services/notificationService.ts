@@ -110,13 +110,15 @@ class NotificationService {
           // Trigger physical device vibration for critical alerts
           if (urgency === 'CRITICAL' || urgency === 'OVERDUE') {
             try {
-              if (Platform.OS === 'android') {
-                Vibration.vibrate([0, 250, 100, 250]);
-              } else {
-                Vibration.vibrate();
+              if (Vibration && typeof Vibration.vibrate === 'function') {
+                if (Platform.OS === 'android') {
+                  Vibration.vibrate([0, 200, 100, 200]);
+                } else {
+                  Vibration.vibrate(400);
+                }
               }
-            } catch (err) {
-              // ignore vibration error
+            } catch {
+              // Gracefully handle if vibration hardware is restricted
             }
           }
 
