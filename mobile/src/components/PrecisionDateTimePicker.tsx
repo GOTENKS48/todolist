@@ -199,7 +199,7 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
 
     setTypeValidation({
       isValid: true,
-      message: `✓ Eligible: ${MONTH_NAMES[m - 1].slice(0, 3)} ${d}, ${y} at ${h}:${min.toString().padStart(2, '0')} ${pm ? 'PM' : 'AM'}`,
+      message: `${MONTH_NAMES[m - 1].slice(0, 3)} ${d}, ${y} at ${h}:${min.toString().padStart(2, '0')} ${pm ? 'PM' : 'AM'}`,
       parsedDate: constructed,
     });
     return true;
@@ -453,30 +453,11 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
           </View>
 
           <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
-            {/* TAB 1: TYPE EXACT (Typable Date & Time with Real-time Validation) */}
+            {/* TAB 1: TYPE EXACT (Typable Date & Time with Direct Inputs) */}
             {activeTab === 'type' && (
               <View style={styles.typeTabContent}>
-                {/* Status Eligibility Badge */}
-                <View
-                  style={[
-                    styles.validationPill,
-                    typeValidation.isValid
-                      ? styles.validationValid
-                      : styles.validationInvalid,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.validationText,
-                      { color: typeValidation.isValid ? Colors.success : Colors.danger },
-                    ]}
-                  >
-                    {typeValidation.message}
-                  </Text>
-                </View>
-
                 {/* Date Typable Fields */}
-                <Text style={styles.inputGroupTitle}>Enter Eligible Date (YYYY / MM / DD):</Text>
+                <Text style={styles.inputGroupTitle}>Enter Date (YYYY / MM / DD):</Text>
                 <View style={styles.typeRow}>
                   {/* Year */}
                   <View style={[styles.inputFieldCol, { flex: 1.4 }]}>
@@ -531,8 +512,8 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
                 </View>
 
                 {/* Time Typable Fields */}
-                <Text style={[styles.inputGroupTitle, { marginTop: 14 }]}>
-                  Enter Eligible Time (12-Hour Clock):
+                <Text style={[styles.inputGroupTitle, { marginTop: 16 }]}>
+                  Enter Time (12-Hour Clock):
                 </Text>
                 <View style={styles.typeRow}>
                   {/* Hour */}
@@ -602,73 +583,6 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
                       </TouchableOpacity>
                     </View>
                   </View>
-                </View>
-
-                {/* Quick Helper Presets */}
-                <Text style={[styles.inputGroupTitle, { marginTop: 14 }]}>Quick Auto-Fill:</Text>
-                <View style={styles.quickChipsWrap}>
-                  <TouchableOpacity
-                    style={styles.quickFillChip}
-                    onPress={() => {
-                      const now = new Date();
-                      const y = now.getFullYear().toString();
-                      const m = (now.getMonth() + 1).toString().padStart(2, '0');
-                      const d = now.getDate().toString().padStart(2, '0');
-                      const hRaw = now.getHours();
-                      const h = (hRaw === 0 ? 12 : hRaw > 12 ? hRaw - 12 : hRaw).toString();
-                      const min = now.getMinutes().toString().padStart(2, '0');
-                      const pm = hRaw >= 12;
-
-                      setTypeYear(y);
-                      setTypeMonth(m);
-                      setTypeDay(d);
-                      setTypeHour(h);
-                      setTypeMinute(min);
-                      setTypeIsPM(pm);
-                      validateAndSetTyped(y, m, d, h, min, pm);
-                    }}
-                  >
-                    <Text style={styles.quickFillText}>Right Now</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.quickFillChip}
-                    onPress={() => {
-                      const now = new Date();
-                      const y = now.getFullYear().toString();
-                      const m = (now.getMonth() + 1).toString().padStart(2, '0');
-                      const d = now.getDate().toString().padStart(2, '0');
-                      setTypeYear(y);
-                      setTypeMonth(m);
-                      setTypeDay(d);
-                      setTypeHour('5');
-                      setTypeMinute('00');
-                      setTypeIsPM(true);
-                      validateAndSetTyped(y, m, d, '5', '00', true);
-                    }}
-                  >
-                    <Text style={styles.quickFillText}>Today 5:00 PM</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.quickFillChip}
-                    onPress={() => {
-                      const tom = new Date();
-                      tom.setDate(tom.getDate() + 1);
-                      const y = tom.getFullYear().toString();
-                      const m = (tom.getMonth() + 1).toString().padStart(2, '0');
-                      const d = tom.getDate().toString().padStart(2, '0');
-                      setTypeYear(y);
-                      setTypeMonth(m);
-                      setTypeDay(d);
-                      setTypeHour('9');
-                      setTypeMinute('00');
-                      setTypeIsPM(false);
-                      validateAndSetTyped(y, m, d, '9', '00', false);
-                    }}
-                  >
-                    <Text style={styles.quickFillText}>Tomorrow 9:00 AM</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -741,34 +655,6 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
                       </TouchableOpacity>
                     );
                   })}
-                </View>
-
-                {/* Date Presets */}
-                <View style={styles.chipsRow}>
-                  <TouchableOpacity
-                    style={styles.quickChip}
-                    onPress={() => applyDatePreset('today')}
-                  >
-                    <Text style={styles.quickChipText}>Today</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickChip}
-                    onPress={() => applyDatePreset('tomorrow')}
-                  >
-                    <Text style={styles.quickChipText}>Tomorrow</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickChip}
-                    onPress={() => applyDatePreset('weekend')}
-                  >
-                    <Text style={styles.quickChipText}>Weekend</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickChip}
-                    onPress={() => applyDatePreset('nextWeek')}
-                  >
-                    <Text style={styles.quickChipText}>+1 Week</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -849,34 +735,6 @@ export const PrecisionDateTimePicker: React.FC<PrecisionDateTimePickerProps> = (
                       </Text>
                     </TouchableOpacity>
                   </View>
-                </View>
-
-                {/* Standard Preset Buttons */}
-                <View style={styles.chipsRow}>
-                  <TouchableOpacity
-                    style={styles.quickChip}
-                    onPress={() => applyTimePreset(9, 0, false)}
-                  >
-                    <Text style={styles.quickChipText}>09:00 AM</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickChip}
-                    onPress={() => applyTimePreset(1, 0, true)}
-                  >
-                    <Text style={styles.quickChipText}>01:00 PM</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickChip}
-                    onPress={() => applyTimePreset(6, 0, true)}
-                  >
-                    <Text style={styles.quickChipText}>06:00 PM</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickChip}
-                    onPress={() => applyTimePreset(11, 59, true)}
-                  >
-                    <Text style={styles.quickChipText}>11:59 PM</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             )}

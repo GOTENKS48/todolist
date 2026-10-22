@@ -298,58 +298,6 @@ export const TaskModal: React.FC<Props> = ({
                   <CustomIcon name="chevron-right" size={12} color={Colors.primaryLight} />
                 </View>
               </TouchableOpacity>
-
-              <Text style={styles.presetLabel}>Quick Presets:</Text>
-              <View style={styles.presetRow}>
-                <TouchableOpacity
-                  style={styles.presetButton}
-                  onPress={() => handleDateTimePreset('now')}
-                >
-                  <Text style={styles.presetText}>Now</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.presetButton}
-                  onPress={() => handleDateTimePreset('evening')}
-                >
-                  <Text style={styles.presetText}>Today 6 PM</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.presetButton}
-                  onPress={() => handleDateTimePreset('tomorrow')}
-                >
-                  <Text style={styles.presetText}>Tomorrow 9 AM</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.presetButton}
-                  onPress={() => handleDateTimePreset('dayAfter')}
-                >
-                  <Text style={styles.presetText}>+2 Days</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={[styles.adjusterRow, { marginTop: 6 }]}>
-                <TouchableOpacity
-                  style={styles.adjusterBtn}
-                  onPress={() => adjustDateTimeHours(-1)}
-                >
-                  <Text style={styles.adjusterText}>-1 Hour</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.adjusterBtn}
-                  onPress={() => adjustDateTimeHours(1)}
-                >
-                  <Text style={styles.adjusterText}>+1 Hour</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.adjusterBtn}
-                  onPress={() => adjustDateTimeHours(24)}
-                >
-                  <Text style={styles.adjusterText}>+1 Day</Text>
-                </TouchableOpacity>
-              </View>
             </View>
 
             {/* Deadline Selection */}
@@ -375,58 +323,6 @@ export const TaskModal: React.FC<Props> = ({
                   <CustomIcon name="chevron-right" size={12} color={Colors.warning} />
                 </View>
               </TouchableOpacity>
-
-              <Text style={styles.presetLabel}>Quick Presets:</Text>
-              <View style={styles.presetRow}>
-                <TouchableOpacity
-                  style={styles.presetButton}
-                  onPress={() => handleDeadlinePreset(4)}
-                >
-                  <Text style={styles.presetText}>+4 Hours</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.presetButton}
-                  onPress={() => handleDeadlinePreset(24)}
-                >
-                  <Text style={styles.presetText}>Tomorrow</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.presetButton}
-                  onPress={() => handleDeadlinePreset(72)}
-                >
-                  <Text style={styles.presetText}>+3 Days</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.presetButton}
-                  onPress={() => handleDeadlinePreset(168)}
-                >
-                  <Text style={styles.presetText}>1 Week</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={[styles.adjusterRow, { marginTop: 6 }]}>
-                <TouchableOpacity
-                  style={styles.adjusterBtn}
-                  onPress={() => adjustDeadlineHours(-1)}
-                >
-                  <Text style={styles.adjusterText}>-1 Hour</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.adjusterBtn}
-                  onPress={() => adjustDeadlineHours(1)}
-                >
-                  <Text style={styles.adjusterText}>+1 Hour</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.adjusterBtn}
-                  onPress={() => adjustDeadlineHours(24)}
-                >
-                  <Text style={styles.adjusterText}>+1 Day</Text>
-                </TouchableOpacity>
-              </View>
             </View>
 
             {/* Action Buttons */}

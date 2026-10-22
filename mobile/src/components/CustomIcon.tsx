@@ -26,7 +26,10 @@ export type IconName =
   | 'sort'
   | 'alert'
   | 'tag'
-  | 'sparkles';
+  | 'sparkles'
+  | 'share'
+  | 'more-horizontal'
+  | 'check-circle';
 
 interface Props {
   name: IconName;
@@ -91,6 +94,12 @@ export const CustomIcon: React.FC<Props> = ({ name, size = 18, color = '#FFFFFF'
         return '🏷';
       case 'sparkles':
         return '✨';
+      case 'share':
+        return '⎘';
+      case 'more-horizontal':
+        return '⋯';
+      case 'check-circle':
+        return '☑';
       default:
         return '•';
     }
