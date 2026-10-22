@@ -346,9 +346,9 @@ export const HomeScreen: React.FC = () => {
           <View style={styles.profileHeaderGroup}>
             <TouchableOpacity
               style={styles.avatarTouchBtn}
-              onPress={handleBrowseLocalAvatar}
+              onPress={() => setIsProfileModalVisible(true)}
               activeOpacity={0.7}
-              accessibilityLabel="Change profile picture"
+              accessibilityLabel="Open profile settings"
             >
               {user?.avatar ? (
                 <Image source={{ uri: user.avatar }} style={styles.profileAvatar} />
@@ -359,10 +359,6 @@ export const HomeScreen: React.FC = () => {
                   </Text>
                 </View>
               )}
-              {/* Camera browse badge */}
-              <View style={styles.avatarCameraBadge}>
-                <CustomIcon name="camera" size={9} color="#FFFDF9" />
-              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -721,7 +717,7 @@ export const HomeScreen: React.FC = () => {
                 >
                   <Text style={styles.pickerOptionIcon}>👤</Text>
                   <View style={styles.pickerOptionTextWrap}>
-                    <Text style={styles.pickerOptionLabel}>My Profile & Account</Text>
+                    <Text style={styles.pickerOptionLabel}>Profile</Text>
                     <Text style={styles.pickerOptionDesc}>{user?.email}</Text>
                   </View>
                 </TouchableOpacity>

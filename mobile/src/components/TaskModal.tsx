@@ -92,36 +92,6 @@ export const TaskModal: React.FC<Props> = ({
     }
   }, [initialTask, visible]);
 
-  const handleDateTimePreset = (preset: 'now' | 'evening' | 'tomorrow' | 'dayAfter') => {
-    const d = new Date();
-    if (preset === 'now') {
-      setDateTime(new Date());
-    } else if (preset === 'evening') {
-      d.setHours(18, 0, 0, 0);
-      setDateTime(d);
-    } else if (preset === 'tomorrow') {
-      d.setDate(d.getDate() + 1);
-      d.setHours(9, 0, 0, 0);
-      setDateTime(d);
-    } else if (preset === 'dayAfter') {
-      d.setDate(d.getDate() + 2);
-      d.setHours(9, 0, 0, 0);
-      setDateTime(d);
-    }
-  };
-
-  const adjustDateTimeHours = (deltaHours: number) => {
-    setDateTime(new Date(dateTime.getTime() + deltaHours * 60 * 60 * 1000));
-  };
-
-  const handleDeadlinePreset = (hoursFromNow: number) => {
-    setDeadline(new Date(Date.now() + hoursFromNow * 60 * 60 * 1000));
-  };
-
-  const adjustDeadlineHours = (deltaHours: number) => {
-    setDeadline(new Date(deadline.getTime() + deltaHours * 60 * 60 * 1000));
-  };
-
   const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('Required Field', 'Please enter a task title.');
